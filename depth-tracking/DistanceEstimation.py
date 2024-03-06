@@ -19,7 +19,7 @@ FONTS = cv.FONT_HERSHEY_COMPLEX
 
 # getting class names from classes.txt file 
 class_names = []
-with open("classes.txt", "r") as f:
+with open("./classes.txt", "r") as f:
     class_names = [cname.strip() for cname in f.readlines()]
 #  setttng up opencv net
 yoloNet = cv.dnn.readNet('yolov4-tiny.weights', 'yolov4-tiny.cfg')
@@ -87,7 +87,7 @@ print(f"Person width in pixels : {person_width_in_rf} mobile width in pixel: {mo
 focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in_rf)
 
 focal_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
-cap = cv.VideoCapture(0)
+cap = cv.VideoCapture("../videos/2-FrontBack-Opposite-Brisk.MP4")
 while True:
     ret, frame = cap.read()
 
