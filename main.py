@@ -1,79 +1,122 @@
-import cv2
-import torch
+import cv2 as cv
 import numpy as np
 from ultralytics import YOLO
+from ultralytics.solutions import distance_calculation
 
-# Load the YOLOv8 model
-model_yolo = YOLO('yolov8n.pt')
+# Constants for depth detection
+KNOWN_DISTANCE = 45 # inches
+PERSON_WIDTH = 16 # inches
+MOBILE_WIDTH = 3.0 # inches
 
-# Load the MiDaS v3 model for depth estimation
-model_midas = torch.hub.load("intel-isl/MiDaS", "MiDaS")
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_midas.to(device)
-model_midas.eval()
+# Object detector constants
+CONFIDENCE_THRESHOLD = 0.4
+NMS_THRESHOLD = 0.3
 
-# Prepare the MiDaS transformation
-midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
-transform = midas_transforms.default_transform
+# Colors and Fonts
+COLORS = [(255, 0, 0), (255, 0, 255), (0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0)]
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+FONTS = cv.FONT_HERSHEY_COMPLEX
 
-# Open the video file or camera
-cap = cv2.VideoCapture(0)
+# Load class names from classes.txt file
+class_names = []
+with open("./classes.txt", "r") as f:
+    class_names = [cname.strip() for cname in f.readlines()]
 
-while cap.isOpened():
-    # Read a frame from the video
-    success, frame = cap.read()
-    if success:
-        # Convert the frame to RGB (MiDaS works with RGB images)
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+# Set up OpenCV net for YOLOv4-tiny
+yoloNet_v4_tiny = cv.dnn.readNet('yolov4-tiny.weights', 'yolov4-tiny.cfg')
+yoloNet_v4_tiny.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
+yoloNet_v4_tiny.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
+model_v4_tiny = cv.dnn_DetectionModel(yoloNet_v4_tiny)
+model_v4_tiny.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
 
-        # Run YOLOv8 inference on the frame
-        results = model_yolo(frame, classes=[0], conf=0.5)
+# Set up the model for YOLOv8n from Ultralytics
+model_v8n = YOLO("yolov8n.pt")
+names_v8n = model_v8n.model.names
 
-        # Prepare frame for MiDaS depth estimation
-        input_batch = transform(frame_rgb).to(device)
+# Define object detector function using YOLOv4-tiny
+def object_detector_v4_tiny(image):
+    classes, scores, boxes = model_v4_tiny.detect(image, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
+    data_list = []
+    for (classid, score, box) in zip(classes, scores, boxes):
+        color = COLORS[int(classid) % len(COLORS)]
+        label = "%s : %f" % (class_names[classid], score)
+        cv.rectangle(image, box, color, 2)
+        cv.putText(image, label, (box[0], box[1] - 10), FONTS, 0.5, color, 2)
+        data_list.append([class_names[classid], box[2], (box[0], box[1])])
+    return data_list
 
-        # Predict depth
-        with torch.no_grad():
-            depth = model_midas(input_batch)
-            depth = torch.nn.functional.interpolate(
-                depth.unsqueeze(1),
-                size=frame.shape[:2],
-                mode="bicubic",
-                align_corners=False,
-            ).squeeze()
-        
-        # Normalize depth for visualization (not needed for depth value extraction)
-        depth_normalized = cv2.normalize(depth.cpu().numpy(), None, 0, 255, cv2.NORM_MINMAX)
-        depth_colored = cv2.applyColorMap(depth_normalized.astype(np.uint8), cv2.COLORMAP_JET)
+# Function to find the focal length
+def focal_length_finder(measured_distance, real_width, width_in_rf):
+    focal_length = (width_in_rf * measured_distance) / real_width
+    return focal_length
 
-        if len(results) > 0 and hasattr(results[0], 'boxes') and len(results[0].boxes) > 0:
-            for r in results:
-                boxes = r.boxes.xywh  # Assuming r.boxes.xywh is the correct way to access the boxes
-                for box in boxes:
-                    x_center, y_center = box[0], box[1]  # Unpack the center coordinates
-                    
-                    # Map the center coordinates to depth map scale
-                    x_depth = int(x_center * depth.shape[1] / frame.shape[1])
-                    y_depth = int(y_center * depth.shape[0] / frame.shape[0])
-                    
-                    # Extract depth value at the center of the detected person
-                    depth_value = depth[y_depth, x_depth].item()
-                    originalShape = r.boxes.orig_shape
-                    print(f"Center coordinates: x={x_center}, y={y_center}, depth={depth_value}, Original Shape={originalShape}")
+# Function to find the distance to the object
+def distance_finder(focal_length, real_object_width, width_in_frame):
+    distance = (real_object_width * focal_length) / width_in_frame
+    return distance
 
-            # Visualize the results on the frame
-            annotated_frame = results[0].plot()
+# Focal length calculation based on reference images
+ref_person = cv.imread('ReferenceImages/image14.png')
+ref_mobile = cv.imread('ReferenceImages/image4.png')
+# Use the correct object_detector function for reference images
+person_data = object_detector_v4_tiny(ref_person)
+mobile_data = object_detector_v4_tiny(ref_mobile)
+# Extract the width in pixels from object data for focal length calculation
+person_width_in_rf = person_data[0][1] if person_data else 0
+mobile_width_in_rf = mobile_data[0][1] if mobile_data else 0
+focal_length_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in_rf)
+focal_length_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
 
-            # Display the annotated frame and the depth map
-            #cv2.imshow("YOLOv8 Inference", annotated_frame)
-            cv2.imshow("Depth Map", depth_colored)
+# Initialize video capture
+cap = cv.VideoCapture(0)
+assert cap.isOpened(), "Error opening video stream or file"
 
-        # Break the loop if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    else:
+# Initialize video writer
+w, h = int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+fps = cap.get(cv.CAP_PROP_FPS)
+video_writer = cv.VideoWriter("output.avi", cv.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+
+# Init distance-calculation object
+dist_obj = distance_calculation.DistanceCalculation()
+dist_obj.set_args(names=names_v8n, view_img=True)
+
+# Main processing loop
+while True:
+    ret, frame = cap.read()
+    if not ret:
         break
 
-# Release the video capture object and close the display window
+    # Object detection and depth estimation using YOLOv4-tiny
+    data_depth = object_detector_v4_tiny(frame)
+    for d in data_depth:
+        object_label = d[0]
+        object_width_in_frame = d[1]
+        x, y = d[2]
+
+        # Estimating distance for different objects
+        if object_label == 'person':
+            distance = distance_finder(focal_length_person, PERSON_WIDTH, object_width_in_frame)
+        elif object_label == 'cell phone':
+            distance = distance_finder(focal_length_mobile, MOBILE_WIDTH, object_width_in_frame)
+
+        # Overlay distance information on the frame
+        cv.rectangle(frame, (x, y-3), (x+150, y+23), BLACK, -1)
+        cv.putText(frame, f'Dis: {round(distance,2)} inch', (x+5, y+13), FONTS, 0.48, GREEN, 2)
+
+    # Object tracking and distance calculation between objects using YOLOv8n
+    results = model_v8n(frame)
+    # Process results as needed and use dist_obj to calculate distances between objects
+
+    # Display and write the frame
+    cv.imshow('Frame', frame)
+    video_writer.write(frame)
+
+    # Break the loop on 'q' key
+    if cv.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Clean up
+video_writer.release()
 cap.release()
-cv2.destroyAllWindows()
+cv.destroyAllWindows()
