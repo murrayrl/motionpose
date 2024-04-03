@@ -1,122 +1,145 @@
-import cv2 as cv
-import numpy as np
 from ultralytics import YOLO
 from ultralytics.solutions import distance_calculation
+import cv2
+import numpy as np
 
-# Constants for depth detection
-KNOWN_DISTANCE = 45 # inches
-PERSON_WIDTH = 16 # inches
-MOBILE_WIDTH = 3.0 # inches
+model = YOLO("yolov8n.pt")
+names = model.model.names
 
-# Object detector constants
+# Distance constants 
+KNOWN_DISTANCE = 45 #INCHES
+PERSON_WIDTH = 16 #INCHES
+MOBILE_WIDTH = 3.0 #INCHES
+
+# Object detector constant 
 CONFIDENCE_THRESHOLD = 0.4
 NMS_THRESHOLD = 0.3
 
-# Colors and Fonts
-COLORS = [(255, 0, 0), (255, 0, 255), (0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0)]
-GREEN = (0, 255, 0)
-BLACK = (0, 0, 0)
-FONTS = cv.FONT_HERSHEY_COMPLEX
+# colors for object detected
+COLORS = [(255,0,0),(255,0,255),(0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0)]
+GREEN =(0,255,0)
+BLACK =(0,0,0)
+# defining fonts 
+FONTS = cv2.FONT_HERSHEY_COMPLEX
 
-# Load class names from classes.txt file
+# getting class names from classes.txt file 
 class_names = []
 with open("./classes.txt", "r") as f:
     class_names = [cname.strip() for cname in f.readlines()]
+#  setttng up opencv net
+yoloNet = cv2.dnn.readNet('yolov4-tiny.weights', 'yolov4-tiny.cfg')
 
-# Set up OpenCV net for YOLOv4-tiny
-yoloNet_v4_tiny = cv.dnn.readNet('yolov4-tiny.weights', 'yolov4-tiny.cfg')
-yoloNet_v4_tiny.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
-yoloNet_v4_tiny.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
-model_v4_tiny = cv.dnn_DetectionModel(yoloNet_v4_tiny)
-model_v4_tiny.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
+yoloNet.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+yoloNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA_FP16)
 
-# Set up the model for YOLOv8n from Ultralytics
-model_v8n = YOLO("yolov8n.pt")
-names_v8n = model_v8n.model.names
 
-# Define object detector function using YOLOv4-tiny
-def object_detector_v4_tiny(image):
-    classes, scores, boxes = model_v4_tiny.detect(image, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
-    data_list = []
+depth_model = cv2.dnn_DetectionModel(yoloNet)
+depth_model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
+
+# object detector funciton /method
+def object_detector(image):
+    classes, scores, boxes = depth_model.detect(image, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
+    # creating empty list to add objects data
+    data_list =[]
     for (classid, score, box) in zip(classes, scores, boxes):
-        color = COLORS[int(classid) % len(COLORS)]
+        # print(classid);
+        # print(score);
+        # print(type(classid), type(score))
+        # print(classid, score)
+        # define color of each, object based on its class id 
+        color= COLORS[int(classid) % len(COLORS)]
+    
         label = "%s : %f" % (class_names[classid], score)
-        cv.rectangle(image, box, color, 2)
-        cv.putText(image, label, (box[0], box[1] - 10), FONTS, 0.5, color, 2)
-        data_list.append([class_names[classid], box[2], (box[0], box[1])])
+
+        # draw rectangle on and label on object
+        cv2.rectangle(image, box, color, 2)
+        cv2.putText(image, label, (box[0], box[1]-14), FONTS, 0.5, color, 2)
+    
+        # getting the data 
+        # 1: class name  2: object width in pixels, 3: position where have to draw text(distance)
+        if classid ==0: # person class id 
+            data_list.append([class_names[classid], box[2], (box[0], box[1]-2)])
+        elif classid ==67:
+            data_list.append([class_names[classid], box[2], (box[0], box[1]-2)])
+        # if you want inclulde more classes then you have to simply add more [elif] statements here
+        # returning list containing the object data. 
     return data_list
 
-# Function to find the focal length
-def focal_length_finder(measured_distance, real_width, width_in_rf):
+
+def focal_length_finder (measured_distance, real_width, width_in_rf):
     focal_length = (width_in_rf * measured_distance) / real_width
+
     return focal_length
 
-# Function to find the distance to the object
-def distance_finder(focal_length, real_object_width, width_in_frame):
-    distance = (real_object_width * focal_length) / width_in_frame
+# distance finder function 
+def distance_finder(focal_length, real_object_width, width_in_frmae):
+    distance = (real_object_width * focal_length) / width_in_frmae
     return distance
 
-# Focal length calculation based on reference images
-ref_person = cv.imread('ReferenceImages/image14.png')
-ref_mobile = cv.imread('ReferenceImages/image4.png')
-# Use the correct object_detector function for reference images
-person_data = object_detector_v4_tiny(ref_person)
-mobile_data = object_detector_v4_tiny(ref_mobile)
-# Extract the width in pixels from object data for focal length calculation
-person_width_in_rf = person_data[0][1] if person_data else 0
-mobile_width_in_rf = mobile_data[0][1] if mobile_data else 0
-focal_length_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in_rf)
-focal_length_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
+# reading the reference image from dir 
+ref_person = cv2.imread('ReferenceImages/image14.png')
+ref_mobile = cv2.imread('ReferenceImages/image4.png')
 
-# Initialize video capture
-cap = cv.VideoCapture(0)
-assert cap.isOpened(), "Error opening video stream or file"
+mobile_data = object_detector(ref_mobile)
+mobile_width_in_rf = mobile_data[1][1]
 
-# Initialize video writer
-w, h = int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-fps = cap.get(cv.CAP_PROP_FPS)
-video_writer = cv.VideoWriter("output.avi", cv.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+person_data = object_detector(ref_person)
+person_width_in_rf = person_data[0][1]
 
-# Init distance-calculation object
+print(f"Person width in pixels : {person_width_in_rf} mobile width in pixel: {mobile_width_in_rf}")
+
+# finding focal length 
+focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in_rf)
+
+focal_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
+
+
+cap = cv2.VideoCapture(0)
+cap.set(3, 640)
+cap.set(4, 480)
+
+assert cap.isOpened(), "Error reading video file"
+w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
+
+# Video writer
+video_writer = cv2.VideoWriter("distance_calculation.avi",
+                               cv2.VideoWriter_fourcc(*'mp4v'),
+                               fps,
+                               (w, h))
+
+# Init distance-calculation obj
 dist_obj = distance_calculation.DistanceCalculation()
-dist_obj.set_args(names=names_v8n, view_img=True)
+dist_obj.set_args(names=names, view_img=True)
 
-# Main processing loop
-while True:
+while cap.isOpened():
+    success, im0 = cap.read()
     ret, frame = cap.read()
-    if not ret:
+    if not success:
+        print("Video frame is empty or video processing has been successfully completed.")
+        break
+    
+    data = object_detector(frame) 
+    for d in data:
+        if d[0] =='person':
+            distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
+            x, y = d[2]
+        elif d[0] =='cell phone':
+            distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
+            x, y = d[2]
+        cv2.rectangle(frame, (x, y-3), (x+150, y+23),BLACK,-1 )
+        cv2.putText(frame, f'Dis: {round(distance,2)} inch', (x+5,y+13), FONTS, 0.48, GREEN, 2)
+
+
+    tracks = model.track(im0, persist=True, show=False)
+    im0 = dist_obj.start_process(im0, tracks)
+    video_writer.write(im0)
+
+    cv2.imshow('frame',frame)
+    
+    key = cv2.waitKey(1)
+    if key ==ord('q'):
         break
 
-    # Object detection and depth estimation using YOLOv4-tiny
-    data_depth = object_detector_v4_tiny(frame)
-    for d in data_depth:
-        object_label = d[0]
-        object_width_in_frame = d[1]
-        x, y = d[2]
-
-        # Estimating distance for different objects
-        if object_label == 'person':
-            distance = distance_finder(focal_length_person, PERSON_WIDTH, object_width_in_frame)
-        elif object_label == 'cell phone':
-            distance = distance_finder(focal_length_mobile, MOBILE_WIDTH, object_width_in_frame)
-
-        # Overlay distance information on the frame
-        cv.rectangle(frame, (x, y-3), (x+150, y+23), BLACK, -1)
-        cv.putText(frame, f'Dis: {round(distance,2)} inch', (x+5, y+13), FONTS, 0.48, GREEN, 2)
-
-    # Object tracking and distance calculation between objects using YOLOv8n
-    results = model_v8n(frame)
-    # Process results as needed and use dist_obj to calculate distances between objects
-
-    # Display and write the frame
-    cv.imshow('Frame', frame)
-    video_writer.write(frame)
-
-    # Break the loop on 'q' key
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Clean up
-video_writer.release()
 cap.release()
-cv.destroyAllWindows()
+video_writer.release()
+cv2.destroyAllWindows()
