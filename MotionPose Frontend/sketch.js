@@ -12,7 +12,7 @@ function setup() {
 
   try {
     // Establish a connection to the WebSocket server
-    const socket = new WebSocket('ws://localhost:5678');
+    const socket = new WebSocket('ws://192.168.1.10:5678');
     console.log("Attempting to connect to WebSocket server");
     console.log("socket: ", socket);
 

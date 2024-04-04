@@ -1,31 +1,10 @@
+import asyncio
+import cv2
+import json
 from ultralytics import YOLO
 from ultralytics.solutions import distance_calculation
-import cv2
-import numpy as np
-import asyncio
-import websockets
-import json
+from ws_server import start_server, connected_clients
 
-
-# This will hold the WebSocket connections
-connected = set()
-
-# The WebSocket server endpoint
-async def server(websocket, path):
-    global connected
-    connected.add(websocket)
-    try:
-        # You could send a welcome message, or just pass if not needed
-        # await websocket.send(json.dumps({"message": "Connected"}))
-        while True:
-            # Just keep the connection open
-            await asyncio.sleep(0.1)
-    except websockets.exceptions.ConnectionClosed:
-        # If the connection closes, remove it from the set
-        connected.remove(websocket)
-
-# Start the WebSocket server
-start_server = websockets.serve(server, "localhost", 5678)
 
 
 
@@ -52,12 +31,12 @@ FONTS = cv2.FONT_HERSHEY_COMPLEX
 class_names = []
 with open("./classes.txt", "r") as f:
     class_names = [cname.strip() for cname in f.readlines()]
+
+
 #  setttng up opencv net
 yoloNet = cv2.dnn.readNet('yolov4-tiny.weights', 'yolov4-tiny.cfg')
-
 yoloNet.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 yoloNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA_FP16)
-
 
 depth_model = cv2.dnn_DetectionModel(yoloNet)
 depth_model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
@@ -120,7 +99,13 @@ focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in
 focal_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
 
 
-async def main():
+async def send_coordinates(x, y):
+    if connected_clients: 
+        message = json.dumps({'x': x, 'y': y})
+        await asyncio.wait([client.send(message) for client in connected_clients])
+
+
+async def main_logic():
     cap = cv2.VideoCapture(0)
     cap.set(3, 640)
     cap.set(4, 480)
@@ -137,7 +122,7 @@ async def main():
     # Init distance-calculation obj
     dist_obj = distance_calculation.DistanceCalculation()
     dist_obj.set_args(names=names, view_img=True)
-    await run_server()
+
     
     while cap.isOpened():
         success, im0 = cap.read()
@@ -169,28 +154,16 @@ async def main():
 
         cv2.imshow('frame',frame)
         
-        key = cv2.waitKey(1)
-        if key ==ord('q'):
+
+        if cv2.waitKey(1) == ord('q'):
             break
+        # key = cv2.waitKey(1)
+        # if key ==ord('q'):
+        #     break
 
     cap.release()
     # video_writer.release()
     cv2.destroyAllWindows()
-
-
-# Function to send the detected coordinates to all connected clients
-async def send_coordinates(x, y):
-    print("waiting")
-    if connected: # Check if there are any connected clients
-        message = json.dumps({'x': x, 'y': y})
-        print("message: ", message)
-        await asyncio.wait([user.send(message) for user in connected])
-
-        # Start the WebSocket server
-async def run_server():
-    server_coroutine = websockets.serve(server, "localhost", 5678)
-    print("Starting WebSocket server on ws://localhost:5678")
-    await server_coroutine  # This starts the server
 
 
 # # Start the main function and the WebSocket server concurrently
@@ -199,12 +172,14 @@ async def run_server():
 #     main_task = asyncio.create_task(main())
 #     await asyncio.gather(server_task, main_task)
 
-# Start the main function and the WebSocket server concurrently
-asyncio.get_event_loop().run_until_complete(asyncio.gather(
-    websockets.serve(server, "localhost", 5678),
-    main(),
-))
+async def main():
+    server_task = start_server()
+    await asyncio.gather(
+        server_task,
+        main_logic(),
+    )
+
+
 
 if __name__ == "__main__":
-    asyncio.run(websockets.serve(server, "localhost", 5678))
-    asyncio.get_event_loop().run_forever()
+    asyncio.run(main())
