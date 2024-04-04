@@ -2,6 +2,32 @@ from ultralytics import YOLO
 from ultralytics.solutions import distance_calculation
 import cv2
 import numpy as np
+import asyncio
+import websockets
+import json
+
+
+# This will hold the WebSocket connections
+connected = set()
+
+# The WebSocket server endpoint
+async def server(websocket, path):
+    global connected
+    connected.add(websocket)
+    try:
+        # You could send a welcome message, or just pass if not needed
+        # await websocket.send(json.dumps({"message": "Connected"}))
+        while True:
+            # Just keep the connection open
+            await asyncio.sleep(0.1)
+    except websockets.exceptions.ConnectionClosed:
+        # If the connection closes, remove it from the set
+        connected.remove(websocket)
+
+# Start the WebSocket server
+start_server = websockets.serve(server, "localhost", 5678)
+
+
 
 model = YOLO("yolov8n.pt")
 names = model.model.names
@@ -86,7 +112,7 @@ mobile_width_in_rf = mobile_data[1][1]
 person_data = object_detector(ref_person)
 person_width_in_rf = person_data[0][1]
 
-print(f"Person width in pixels : {person_width_in_rf} mobile width in pixel: {mobile_width_in_rf}")
+# print(f"Person width in pixels : {person_width_in_rf} mobile width in pixel: {mobile_width_in_rf}")
 
 # finding focal length 
 focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in_rf)
@@ -94,52 +120,91 @@ focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in
 focal_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
 
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 640)
-cap.set(4, 480)
+async def main():
+    cap = cv2.VideoCapture(0)
+    cap.set(3, 640)
+    cap.set(4, 480)
 
-assert cap.isOpened(), "Error reading video file"
-w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
+    assert cap.isOpened(), "Error reading video file"
+    w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
 
-# Video writer
-video_writer = cv2.VideoWriter("distance_calculation.avi",
-                               cv2.VideoWriter_fourcc(*'mp4v'),
-                               fps,
-                               (w, h))
+    # # Video writer
+    # video_writer = cv2.VideoWriter("distance_calculation.avi",
+    #                             cv2.VideoWriter_fourcc(*'mp4v'),
+    #                             fps,
+    #                             (w, h))
 
-# Init distance-calculation obj
-dist_obj = distance_calculation.DistanceCalculation()
-dist_obj.set_args(names=names, view_img=True)
-
-while cap.isOpened():
-    success, im0 = cap.read()
-    ret, frame = cap.read()
-    if not success:
-        print("Video frame is empty or video processing has been successfully completed.")
-        break
+    # Init distance-calculation obj
+    dist_obj = distance_calculation.DistanceCalculation()
+    dist_obj.set_args(names=names, view_img=True)
+    await run_server()
     
-    data = object_detector(frame) 
-    for d in data:
-        if d[0] =='person':
-            distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
-            x, y = d[2]
-        elif d[0] =='cell phone':
-            distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
-            x, y = d[2]
-        cv2.rectangle(frame, (x, y-3), (x+150, y+23),BLACK,-1 )
-        cv2.putText(frame, f'Dis: {round(distance,2)} inch', (x+5,y+13), FONTS, 0.48, GREEN, 2)
+    while cap.isOpened():
+        success, im0 = cap.read()
+        ret, frame = cap.read()
+        if not success:
+            print("Video frame is empty or video processing has been successfully completed.")
+            break
+        
+        data = object_detector(frame) 
+        for d in data:
+            if d[0] =='person':
+                distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
+                x, y = d[2]
+                # print("x: ", x)
+                # print("y: ", y)
+                
+                await send_coordinates(x,y)
+                # print("test")
+            # elif d[0] =='cell phone':
+            #     distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
+            #     x, y = d[2]
+            cv2.rectangle(frame, (x, y-3), (x+150, y+23),BLACK,-1 )
+            cv2.putText(frame, f'Dis: {round(distance,2)} inch', (x+5,y+13), FONTS, 0.48, GREEN, 2)
 
 
-    tracks = model.track(im0, persist=True, show=False)
-    im0 = dist_obj.start_process(im0, tracks)
-    video_writer.write(im0)
+        tracks = model.track(im0, persist=True, show=False)
+        im0 = dist_obj.start_process(im0, tracks)
+        # video_writer.write(im0)
 
-    cv2.imshow('frame',frame)
-    
-    key = cv2.waitKey(1)
-    if key ==ord('q'):
-        break
+        cv2.imshow('frame',frame)
+        
+        key = cv2.waitKey(1)
+        if key ==ord('q'):
+            break
 
-cap.release()
-video_writer.release()
-cv2.destroyAllWindows()
+    cap.release()
+    # video_writer.release()
+    cv2.destroyAllWindows()
+
+
+# Function to send the detected coordinates to all connected clients
+async def send_coordinates(x, y):
+    print("waiting")
+    if connected: # Check if there are any connected clients
+        message = json.dumps({'x': x, 'y': y})
+        print("message: ", message)
+        await asyncio.wait([user.send(message) for user in connected])
+
+        # Start the WebSocket server
+async def run_server():
+    server_coroutine = websockets.serve(server, "localhost", 5678)
+    print("Starting WebSocket server on ws://localhost:5678")
+    await server_coroutine  # This starts the server
+
+
+# # Start the main function and the WebSocket server concurrently
+# async def run_server_and_main():
+#     server_task = asyncio.create_task(run_server())
+#     main_task = asyncio.create_task(main())
+#     await asyncio.gather(server_task, main_task)
+
+# Start the main function and the WebSocket server concurrently
+asyncio.get_event_loop().run_until_complete(asyncio.gather(
+    websockets.serve(server, "localhost", 5678),
+    main(),
+))
+
+if __name__ == "__main__":
+    asyncio.run(websockets.serve(server, "localhost", 5678))
+    asyncio.get_event_loop().run_forever()
