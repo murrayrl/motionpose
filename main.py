@@ -3,9 +3,13 @@ import cv2
 import json
 from ultralytics import YOLO
 from ultralytics.solutions import distance_calculation
-from ws_server import start_server, connected_clients
+# from ws_server import start_server, connected_clients
+import websockets
+# import sys
+# import os
 
 
+# sys.stdout = open('output.txt', 'w')
 
 
 model = YOLO("yolov8n.pt")
@@ -99,86 +103,85 @@ focal_person = focal_length_finder(KNOWN_DISTANCE, PERSON_WIDTH, person_width_in
 focal_mobile = focal_length_finder(KNOWN_DISTANCE, MOBILE_WIDTH, mobile_width_in_rf)
 
 
-async def send_coordinates(x, y):
-    if connected_clients: 
-        message = json.dumps({'x': x, 'y': y})
-        await asyncio.wait([client.send(message) for client in connected_clients])
-
-
 async def main_logic():
-    cap = cv2.VideoCapture(0)
-    cap.set(3, 640)
-    cap.set(4, 480)
+    try:
+        async with websockets.connect("ws://localhost:5678") as websocket:
+            cap = cv2.VideoCapture(0)
+            cap.set(3, 640)
+            cap.set(4, 480)
 
-    assert cap.isOpened(), "Error reading video file"
-    w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
+            assert cap.isOpened(), "Error reading video file"
+            w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
 
-    # # Video writer
-    # video_writer = cv2.VideoWriter("distance_calculation.avi",
-    #                             cv2.VideoWriter_fourcc(*'mp4v'),
-    #                             fps,
-    #                             (w, h))
+            # # Video writer
+            # video_writer = cv2.VideoWriter("distance_calculation.avi",
+            #                             cv2.VideoWriter_fourcc(*'mp4v'),
+            #                             fps,
+            #                             (w, h))
 
-    # Init distance-calculation obj
-    dist_obj = distance_calculation.DistanceCalculation()
-    dist_obj.set_args(names=names, view_img=True)
+            # Init distance-calculation obj
+            dist_obj = distance_calculation.DistanceCalculation()
+            dist_obj.set_args(names=names, view_img=True)
 
-    
-    while cap.isOpened():
-        success, im0 = cap.read()
-        ret, frame = cap.read()
-        if not success:
-            print("Video frame is empty or video processing has been successfully completed.")
-            break
-        
-        data = object_detector(frame) 
-        for d in data:
-            if d[0] =='person':
-                distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
-                x, y = d[2]
-                # print("x: ", x)
-                # print("y: ", y)
+            
+            while cap.isOpened():
+                success, im0 = cap.read()
+                ret, frame = cap.read()
+                if not success:
+                    print("Video frame is empty or video processing has been successfully completed.")
+                    break
                 
-                await send_coordinates(x,y)
-                # print("test")
-            # elif d[0] =='cell phone':
-            #     distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
-            #     x, y = d[2]
-            cv2.rectangle(frame, (x, y-3), (x+150, y+23),BLACK,-1 )
-            cv2.putText(frame, f'Dis: {round(distance,2)} inch', (x+5,y+13), FONTS, 0.48, GREEN, 2)
+                data = object_detector(frame) 
+                for d in data:
+                    print(f"Detected: {d[0]}, Width: {d[1]}, Coordinates: {d[2]}")
+
+                    if d[0] =='person':
+                        distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
+                        x, y = d[2]
+                        # print("x: ", x)
+                        # print("y: ", y)
+
+                        
+                        await send_coordinates(websocket, x, y)
+                        # print("test")
+                    # elif d[0] =='cell phone':
+                    #     distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
+                    #     x, y = d[2]
+                    cv2.rectangle(frame, (x, y-3), (x+150, y+23),BLACK,-1 )
+                    cv2.putText(frame, f'Dis: {round(distance,2)} inch', (x+5,y+13), FONTS, 0.48, GREEN, 2)
 
 
-        tracks = model.track(im0, persist=True, show=False)
-        im0 = dist_obj.start_process(im0, tracks)
-        # video_writer.write(im0)
+                tracks = model.track(im0, persist=True, show=False)
+                im0 = dist_obj.start_process(im0, tracks)
+                # video_writer.write(im0)
 
-        cv2.imshow('frame',frame)
-        
+                cv2.imshow('frame',frame)
+                
 
-        if cv2.waitKey(1) == ord('q'):
-            break
-        # key = cv2.waitKey(1)
-        # if key ==ord('q'):
-        #     break
+                if cv2.waitKey(1) == ord('q'):
+                    break
+                # key = cv2.waitKey(1)
+                # if key ==ord('q'):
+                #     break
 
-    cap.release()
-    # video_writer.release()
-    cv2.destroyAllWindows()
+            cap.release()
+            # video_writer.release()
+            cv2.destroyAllWindows()
+            await websocket.close()
+    except Exception as e:
+        print(f"Error: {e}")
+    
+async def send_coordinates(websocket, x, y):
+    data = {"x": int(x), "y": int(y)}  # Convert to standard int
+    # message = "Test message"
+    # await websocket.send(message)
+    message = json.dumps(data)
+    await websocket.send(message)
 
 
-# # Start the main function and the WebSocket server concurrently
-# async def run_server_and_main():
-#     server_task = asyncio.create_task(run_server())
-#     main_task = asyncio.create_task(main())
-#     await asyncio.gather(server_task, main_task)
 
 async def main():
-    server_task = start_server()
-    await asyncio.gather(
-        server_task,
-        main_logic(),
-    )
-
+    await main_logic()
 
 
 if __name__ == "__main__":
