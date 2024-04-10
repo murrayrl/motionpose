@@ -13,8 +13,8 @@ async def unregister_client(websocket):
 
     connected_clients.remove(websocket)
 
-async def send_coordinates(x, y):
-    message = json.dumps({'x': x, 'y': y})
+async def send_coordinates(distance, x, y):
+    message = json.dumps({'distance': distance, 'x': x, 'y': y})
     if connected_clients:  # Check if there are any connected clients
         tasks = [asyncio.create_task(client.send(message)) for client in connected_clients]
         await asyncio.wait(tasks)
@@ -25,8 +25,8 @@ async def websocket_handler(websocket, path):
         async for message in websocket:
             print(f"Received message: {message}")
             data = json.loads(message)
-            x, y = data['x'], data['y']
-            await send_coordinates(x, y)  # Broadcast the coordinates to all connected clients
+            distance, x, y = data['distance'], data['x'], data['y']
+            await send_coordinates(distance, x, y)  # Broadcast the coordinates to all connected clients
     finally:
         await unregister_client(websocket)
 

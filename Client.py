@@ -8,7 +8,7 @@ async def receive_coordinates(websocket):
             data = await websocket.recv()
             print("Received data:", data)  # Check if data is received
             coordinates = json.loads(data)
-            print(f"Received coordinates: X: {coordinates['x']}, Y: {coordinates['y']}")
+            print(f"Received coordinates: Distance: {coordinates['distance']}, X: {coordinates['x']}, Y: {coordinates['y']}")
     except Exception as e:
         print(f"Error: {e}")
         

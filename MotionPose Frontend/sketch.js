@@ -18,6 +18,8 @@ function setup() {
     var message = JSON.parse(event.data);
     previousCoordinates.x = message.x;
     previousCoordinates.y = message.y;
+    previousCoordinates.distance = message.distance;
+
   };
 
   socket.onopen = function(event) {
@@ -35,12 +37,12 @@ function draw() {
   // Use the received coordinates to adjust the angle and length
   let angle = map(previousCoordinates.x, 0, width, 0, TWO_PI);
   let length = map(previousCoordinates.y, 0, height, 0, height * sizeMult);
-
+  let hue = map(previousCoordinates.distance, 0, 1000, 0, 1000); // Adjust the range according to your data
   // Calculate the rate of change of the coordinates
   let rateOfChange = dist(previousCoordinates.x, previousCoordinates.y, previousCoordinates.x, previousCoordinates.y);
 
   // Adjust the fractal's color based on the rate of change
-  let hue = map(rateOfChange, 0, 50, 0, 255);
+  
   stroke(hue, 255, 255);
 
   translate(width / 2, height);

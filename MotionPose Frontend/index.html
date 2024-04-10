@@ -15,20 +15,8 @@
   </head>
 
   <body>
-    <input type="text" id="coordinateInput" placeholder="Enter coordinates (x,y)" />
-    <button onclick="updateFractalFromInput()">Update Coordinates</button>
+  
+   <!--<script src="sketch.js"></script> --> 
     <script src="sketch.js"></script>
-    <script>
-      function updateFractalFromInput() {
-        const input = document.getElementById('coordinateInput').value;
-        const coordinates = input.split(',').map(Number);
-        if (coordinates.length === 2 && !isNaN(coordinates[0]) && !isNaN(coordinates[1])) {
-          // Assuming you have a function in your sketch.js that takes the coordinates
-          updateFractal({ x: coordinates[0], y: coordinates[1] }, 0); // You might want to calculate the rate of change
-        } else {
-          alert('Please enter valid coordinates in the format x,y');
-        }
-      }
-    </script>
   </body>
 </html>

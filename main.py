@@ -138,11 +138,11 @@ async def main_logic():
                     if d[0] =='person':
                         distance = distance_finder(focal_person, PERSON_WIDTH, d[1])
                         x, y = d[2]
-                        # print("x: ", x)
-                        # print("y: ", y)
+                        print("x: ", x)
+                        print("y: ", y)
 
                         
-                        await send_coordinates(websocket, x, y)
+                        await send_coordinates(websocket, distance, x, y)
                         # print("test")
                     # elif d[0] =='cell phone':
                     #     distance = distance_finder (focal_mobile, MOBILE_WIDTH, d[1])
@@ -171,14 +171,12 @@ async def main_logic():
     except Exception as e:
         print(f"Error: {e}")
     
-async def send_coordinates(websocket, x, y):
-    data = {"x": int(x), "y": int(y)}  # Convert to standard int
+async def send_coordinates(websocket, distance, x, y):
+    data = {"distance": int(distance), "x": int(x), "y": int(y)}  # Convert to standard int
     # message = "Test message"
     # await websocket.send(message)
     message = json.dumps(data)
     await websocket.send(message)
-
-
 
 async def main():
     await main_logic()
