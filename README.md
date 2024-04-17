@@ -31,15 +31,16 @@ This README is aimed to help users with all levels of coding experience, from do
 
       Open up VS Code and go to source control. If git is properly installed, you will be able to connect your GitHub with VS Code.
 
+      Here you can either use the VS Code interface to find the project or you can paste the HTTP GitHub repository for the              project into the search bar where it says "Provide repository URL or pick a repository source":
+ 
+        https://github.com/<YOUR GITHUB USERNAME.>/motionpose.git
    
 ![Go to Source (1)](https://github.com/michael01890/motionpose/assets/124008592/fe4911bf-d3eb-457c-8d07-74161387c6b0)
 
 ![Go to Source (3)](https://github.com/michael01890/motionpose/assets/124008592/149778e5-9dc8-4012-b43b-71d7886de31b)
 
 
-      Here you can either use the VS Code interface to find the project or you can paste the HTTP GitHub repository for the              project into the search bar where it says "Provide repository URL or pick a repository source":
- 
-        https://github.com/<YOUR GITHUB USERNAME.>/motionpose.git
+      
 
 ### Installing
 
