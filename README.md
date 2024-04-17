@@ -19,7 +19,8 @@ This README is aimed to help users with all levels of coding experience, from do
 
 2. **Git Installation**
 
-         After Downloading, make sure you have git installed on your computer to clone the project. Download it [here](https://git-scm.com/downloads)
+   After Downloading, make sure you have git installed on your computer to clone the project.
+   Download it [here](https://git-scm.com/downloads)
 
    <img width="815" alt="Screenshot 2024-04-17 at 4 29 58 PM" src="https://github.com/michael01890/motionpose/assets/124008592/1a66600f-6e60-49b4-9846-8d22cf696b9c">
 
