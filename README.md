@@ -9,7 +9,7 @@ This README is aimed to help users with all levels of coding experience, from do
 
 ## Set-Up
 
-### Dependencies
+### Cloning the MotionPose Project
 
 1. **Download VSCode**
 
