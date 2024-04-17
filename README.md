@@ -4,13 +4,17 @@ Do later
 
 ## Description
 
-An in-depth paragraph about your project and overview of use.
+This README will be aimed to walk-through users with all levels of coding experience, from downloading code-editors to dependencies. Feel free to submit any concerns or questions [here](https://forms.gle/jqhrSSzZc9947NS2A)
 
 ## Getting Started
 
 ### Dependencies
 
-* 
+1. Download [VSCode](https://code.visualstudio.com/download). VSCode is a code-editor, where you will run the project by cloning this github project.
+   
+<img width="742" alt="Screenshot 2024-04-17 at 4 25 30 PM" src="https://github.com/michael01890/motionpose/assets/124008592/2880f07c-9a13-4b39-aa18-cc3385329569">
+
+
 
 ### Installing
 
