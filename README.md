@@ -4,18 +4,25 @@ Do later
 
 ## Description
 
-This README will be aimed to walk-through users with all levels of coding experience, from downloading code-editors to dependencies. Feel free to submit any concerns or questions [here](https://forms.gle/jqhrSSzZc9947NS2A)
 
-## Getting Started
+This README is aimed to help users with all levels of coding experience, from downloading code-editors to package dependencies that the project will need to run. Feel free to submit any concerns or questions [here](https://forms.gle/jqhrSSzZc9947NS2A)
+
+## Set-Up
 
 ### Dependencies
 
-1. Download [VSCode](https://code.visualstudio.com/download). VSCode is a code-editor, where you will run the project by cloning this github project.
+1. **Download VSCode**
+
+      [Download VSCode Here](https://code.visualstudio.com/download). VSCode is a code editor where you will run the MotionPose project. 
    
 <img width="742" alt="Screenshot 2024-04-17 at 4 25 30 PM" src="https://github.com/michael01890/motionpose/assets/124008592/2880f07c-9a13-4b39-aa18-cc3385329569">
 
+2. **Git Installation**
+   After Downloading, make sure you have git installed on your computer to clone the project. Download it [here](https://git-scm.com/downloads)
 
+   <img width="815" alt="Screenshot 2024-04-17 at 4 29 58 PM" src="https://github.com/michael01890/motionpose/assets/124008592/1a66600f-6e60-49b4-9846-8d22cf696b9c">
 
+4. 
 ### Installing
 
 * How/where to download your program
