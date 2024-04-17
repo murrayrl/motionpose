@@ -40,9 +40,11 @@ This README is aimed to help users with all levels of coding experience, from do
 ![Go to Source (3)](https://github.com/michael01890/motionpose/assets/124008592/149778e5-9dc8-4012-b43b-71d7886de31b)
 
 
+
+      Now you should have all the project files on your local machine!
       
 
-### Installing
+### Installing Dependencies
 
 * How/where to download your program
 * Any modifications needed to be made to files/folders
