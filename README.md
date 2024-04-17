@@ -22,9 +22,18 @@ This README is aimed to help users with all levels of coding experience, from do
    After Downloading, make sure you have git installed on your computer to clone the project.
    Download it [here](https://git-scm.com/downloads)
 
+
    <img width="815" alt="Screenshot 2024-04-17 at 4 29 58 PM" src="https://github.com/michael01890/motionpose/assets/124008592/1a66600f-6e60-49b4-9846-8d22cf696b9c">
 
-4. 
+4. **Clone MotionPose**
+
+      Now you want to clone the MotionPose project to your own local machine.
+
+        Open up VS Code and go to source control. If git is properly installed, you will be able to connect your GitHub with VS Code. 
+![Go to Source (1)](https://github.com/michael01890/motionpose/assets/124008592/fe4911bf-d3eb-457c-8d07-74161387c6b0)
+
+![Go to Source (3)](https://github.com/michael01890/motionpose/assets/124008592/149778e5-9dc8-4012-b43b-71d7886de31b)
+
 ### Installing
 
 * How/where to download your program
