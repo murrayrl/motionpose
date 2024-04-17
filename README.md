@@ -41,7 +41,7 @@ This README is aimed to help users with all levels of coding experience, from do
 
 
 
-      Now you should have all the project files on your local machine!
+    Now you should have all the project files on your local machine!
       
 
 ### Installing Dependencies
