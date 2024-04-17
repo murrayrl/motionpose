@@ -36,6 +36,8 @@ This README is aimed to help users with all levels of coding experience, from do
 
 ![Go to Source (3)](https://github.com/michael01890/motionpose/assets/124008592/149778e5-9dc8-4012-b43b-71d7886de31b)
 
+      Here you can either use the VS Code interface to find the project or you can paste the HTTP GitHub repository for the project into the searchbar where it says "Provide repository URL or pick a repository source": https://github.com/michael01890/motionpose.git
+
 ### Installing
 
 * How/where to download your program
