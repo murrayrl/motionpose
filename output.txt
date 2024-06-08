@@ -1,1 +1,0 @@
-Video frame is empty or video processing has been successfully completed.

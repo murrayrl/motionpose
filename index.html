@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Graphics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+    <script>
+        let ws;
+        let x, y;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            background(255);
+
+            // Initialize x and y to the center of the canvas
+            x = width / 2;
+            y = height / 2;
+
+            ws = new WebSocket('ws://localhost:8765');
+
+            ws.onopen = function() {
+                console.log("WebSocket is open now.");
+            };
+
+            ws.onmessage = function(event) {
+                console.log("Received data from server:", event.data);
+                const data = JSON.parse(event.data);
+                x = constrain(data.x, 0, windowWidth);
+                y = constrain(data.y, 0, windowHeight);
+                console.log(`Constrained coordinates: (${x}, ${y})`);
+            };
+
+            ws.onerror = function(error) {
+                console.log("WebSocket Error:", error);
+            };
+
+            ws.onclose = function() {
+                console.log("WebSocket is closed now.");
+            };
+        }
+
+        function draw() {
+            background(255);
+            ellipse(x, y, 100, 100); // Draw a circle at the received coordinates
+        }
+    </script>
+</body>
+</html>
