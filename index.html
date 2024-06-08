@@ -9,34 +9,46 @@
 <body>
     <script>
         let ws;
-        let x, y;
+        let x, y, z;
+        let lastX, lastY, lastZ;  // Variables to hold the last coordinates
+        let velocityX, velocityY, velocityZ;  // Variables to calculate velocity
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
             background(255);
 
-            // Initialize x and y to the center of the canvas
-            x = width / 2;
-            y = height / 2;
+            // Initialize coordinates and velocities
+            x = y = z = 0;
+            lastX = lastY = lastZ = 0;
+            velocityX = velocityY = velocityZ = 0;
 
             ws = new WebSocket('ws://localhost:8765');
-
             ws.onopen = function() {
                 console.log("WebSocket is open now.");
             };
-
             ws.onmessage = function(event) {
-                console.log("Received data from server:", event.data);
                 const data = JSON.parse(event.data);
-                x = constrain(data.x, 0, windowWidth);
-                y = constrain(data.y, 0, windowHeight);
-                console.log(`Constrained coordinates: (${x}, ${y})`);
-            };
 
+                // Update coordinates
+                let newX = constrain(data.x, 0, windowWidth);
+                let newY = constrain(data.y, 0, windowHeight);
+                let newZ = data.z;
+
+                // Calculate velocity
+                velocityX = abs(newX - x);
+                velocityY = abs(newY - y);
+                velocityZ = abs(newZ - z);
+
+                // Update last coordinates
+                x = newX;
+                y = newY;
+                z = newZ;
+
+                console.log(`Velocity - X: ${velocityX}, Y: ${velocityY}, Z: ${velocityZ}`);
+            };
             ws.onerror = function(error) {
                 console.log("WebSocket Error:", error);
             };
-
             ws.onclose = function() {
                 console.log("WebSocket is closed now.");
             };
@@ -44,7 +56,17 @@
 
         function draw() {
             background(255);
-            ellipse(x, y, 100, 100); // Draw a circle at the received coordinates
+            let colorChangeRate = (velocityX + velocityY + velocityZ) / 3; // Calculate average velocity
+            console.log("color rate: ", colorChangeRate);
+
+            // Map color change rate to color values
+            let colorVal = map(colorChangeRate, 0, 50, 0, 255); // Adjust range as needed
+            stroke(colorVal, 100, 255 - colorVal); // Set the stroke color based on velocity
+            strokeWeight(2); // Set the thickness of the circle's line
+
+            // Adjust size mapping based on z
+            let size = map(10 * z, 200, 1500, 100, 20); 
+            ellipse(x, y, size/2, size/2); // Draw a circle with size based on z
         }
     </script>
 </body>
