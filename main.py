@@ -22,9 +22,9 @@ async def send_coordinates(x, y, z):
         coordinates = {'x': x, 'y': y, 'z': z}
         await websocket.send(json.dumps(coordinates))
 
-mp_holistic = mp.solutions.holistic
 mp_drawing = mp.solutions.drawing_utils
-holistic = mp_holistic.Holistic()
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose()
 cap = cv2.VideoCapture(0)
 
 async def main():
@@ -34,15 +34,25 @@ async def main():
             break
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = holistic.process(frame_rgb)
+        results = pose.process(frame_rgb)
 
         if results.pose_landmarks:
-            # Choose a specific landmark, e.g., the nose (landmark index 0)
-            landmarks = results.pose_landmarks.landmark
-            nose_landmark = landmarks[0]
-            x = int(nose_landmark.x * frame.shape[1])
-            y = int(nose_landmark.y * frame.shape[0])
-            z = nose_landmark.z * Z_SCALING_FACTOR  # Scale z-coordinate
+
+            #  Use landmarks such as the shoulders or hips for more stability
+            # right_hip = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP]
+            # left_hip = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP]
+            # mid_hip_x = (right_hip.x + left_hip.x) * 0.5 * frame.shape[1]
+            # mid_hip_y = (right_hip.y + left_hip.y) * 0.5 * frame.shape[0]
+            # mid_hip_z = (right_hip.z + left_hip.z) * 0.5 * Z_SCALING_FACTOR
+
+            # Invert the x coordinate
+            # mid_hip_x = frame.shape[1] - mid_hip_x
+
+
+            landmark = results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE]
+            x = landmark.x * frame.shape[1]
+            y = landmark.y * frame.shape[0]
+            z = landmark.z * Z_SCALING_FACTOR  # Scaling factor for visibility
 
             # Invert the x coordinate
             x = frame.shape[1] - x
@@ -60,10 +70,10 @@ async def main():
             # Send smoothed coordinates to the web application
             await send_coordinates(avg_x, avg_y, avg_z)
 
-            # Draw pose landmarks
-            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+            # Draw pose landmarks using the correct reference for pose connections
+            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
 
-        cv2.imshow('MediaPipe Holistic', frame)
+        cv2.imshow('MediaPipe Pose', frame)
         if cv2.waitKey(5) & 0xFF == 27:
             break
 
