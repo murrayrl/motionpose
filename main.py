@@ -1,84 +1,91 @@
 import cv2
 import mediapipe as mp
+import numpy as np
 import asyncio
 import websockets
 import json
-from collections import deque
 
-# Parameters
-SMOOTHING_WINDOW_SIZE = 5
-
-# Initialize deque for smoothing
-x_coords = deque(maxlen=SMOOTHING_WINDOW_SIZE)
-y_coords = deque(maxlen=SMOOTHING_WINDOW_SIZE)
-z_coords = deque(maxlen=SMOOTHING_WINDOW_SIZE)  # For distance
-
-# Scaling factor to amplify z-coordinates
-Z_SCALING_FACTOR = 1000  # Adjust this based on observations
-
-async def send_coordinates(x, y, z):
-    uri = "ws://localhost:8765"
-    async with websockets.connect(uri) as websocket:
-        coordinates = {'x': x, 'y': y, 'z': z}
-        await websocket.send(json.dumps(coordinates))
-
-mp_drawing = mp.solutions.drawing_utils
+# Load YOLO model and initialize MediaPipe Pose
+net = cv2.dnn.readNet("yolov4-tiny.weights", "yolov4-tiny.cfg")
+layer_names = net.getLayerNames()
+output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 cap = cv2.VideoCapture(0)
 
+async def send_coordinates(data):
+    uri = "ws://localhost:8765"
+    try:
+        async with websockets.connect(uri) as websocket:
+            await websocket.send(json.dumps(data))
+            print("Data sent successfully for ID:", data['id'])  # Print ID on data send
+    except Exception as e:
+        print("Failed to send data:", e)
+
 async def main():
     while cap.isOpened():
-        success, frame = cap.read()
-        if not success:
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to grab frame")
             break
 
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(frame_rgb)
+        height, width, _ = frame.shape
+        blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+        net.setInput(blob)
+        outs = net.forward(output_layers)
 
-        if results.pose_landmarks:
+        boxes = []
+        confidences = []
 
-            #  Use landmarks such as the shoulders or hips for more stability
-            # right_hip = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP]
-            # left_hip = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP]
-            # mid_hip_x = (right_hip.x + left_hip.x) * 0.5 * frame.shape[1]
-            # mid_hip_y = (right_hip.y + left_hip.y) * 0.5 * frame.shape[0]
-            # mid_hip_z = (right_hip.z + left_hip.z) * 0.5 * Z_SCALING_FACTOR
+        for out in outs:
+            for detection in out:
+                scores = detection[5:]
+                class_id = np.argmax(scores)
+                confidence = scores[class_id]
+                if confidence > 0.6:
+                    center_x = int(detection[0] * width)
+                    center_y = int(detection[1] * height)
+                    w = int(detection[2] * width)
+                    h = int(detection[3] * height)
+                    x = max(0, int(center_x - w / 2))
+                    y = max(0, int(center_y - h / 2))
+                    boxes.append([x, y, w, h])
+                    confidences.append(float(confidence))
 
-            # Invert the x coordinate
-            # mid_hip_x = frame.shape[1] - mid_hip_x
+        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.6, 0.3)
+        people_data = []
+        if indexes is not None and len(indexes) > 0:
+            indexes = indexes.flatten()
+            for i, index in enumerate(indexes):
+                x, y, w, h = boxes[index]
+                roi = frame[y:y + h, x:x + w]
+                roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+                results = pose.process(roi_rgb)
 
+                person_data = {'coordinates': [], 'id': i}
+                if results.pose_landmarks:
+                    for landmark in results.pose_landmarks.landmark:
+                        abs_x = int(landmark.x * w + x)
+                        abs_y = int(landmark.y * h + y)
+                        abs_z = int(landmark.z * 1000)  # Assuming Z needs scaling
+                        person_data['coordinates'].append({'x': abs_x, 'y': abs_y, 'z': abs_z})
+                        print("ID:", i, "Coords:", {'x': abs_x, 'y': abs_y, 'z': abs_z})  # Print each coordinate with ID
+                        cv2.circle(frame, (abs_x, abs_y), 5, (0, 255, 0), -1)
 
-            landmark = results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE]
-            x = landmark.x * frame.shape[1]
-            y = landmark.y * frame.shape[0]
-            z = landmark.z * Z_SCALING_FACTOR  # Scaling factor for visibility
+                people_data.append(person_data)
+                print("people data: ", people_data)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        
+        if people_data:
+            print("data: ", people_data)
+            await send_coordinates(people_data)
 
-            # Invert the x coordinate
-            x = frame.shape[1] - x
-
-            # Add coordinates to the deque
-            x_coords.append(x)
-            y_coords.append(y)
-            z_coords.append(z)
-
-            # Compute the average of the coordinates
-            avg_x = sum(x_coords) // len(x_coords)
-            avg_y = sum(y_coords) // len(y_coords)
-            avg_z = sum(z_coords) / len(z_coords)
-
-            # Send smoothed coordinates to the web application
-            await send_coordinates(avg_x, avg_y, avg_z)
-
-            # Draw pose landmarks using the correct reference for pose connections
-            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
-
-        cv2.imshow('MediaPipe Pose', frame)
+        cv2.imshow('Frame', frame)
         if cv2.waitKey(5) & 0xFF == 27:
             break
 
     cap.release()
     cv2.destroyAllWindows()
 
-# Run the main function using asyncio
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

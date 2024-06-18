@@ -9,18 +9,11 @@
 <body>
     <script>
         let ws;
-        let x, y, z;
-        let lastX, lastY, lastZ;  // Variables to hold the last coordinates
-        let velocityX, velocityY, velocityZ;  // Variables to calculate velocity
+        let coords = []; // Array to hold coordinates
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
             background(255);
-
-            // Initialize coordinates and velocities
-            x = y = z = 0;
-            lastX = lastY = lastZ = 0;
-            velocityX = velocityY = velocityZ = 0;
 
             ws = new WebSocket('ws://localhost:8765');
             ws.onopen = function() {
@@ -28,23 +21,12 @@
             };
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
+                console.log(data); // Log the full data to see the structure
 
-                // Update coordinates
-                let newX = constrain(data.x, 0, windowWidth);
-                let newY = constrain(data.y, 0, windowHeight);
-                let newZ = data.z;
-
-                // Calculate velocity
-                velocityX = abs(newX - x);
-                velocityY = abs(newY - y);
-                velocityZ = abs(newZ - z);
-
-                // Update last coordinates
-                x = newX;
-                y = newY;
-                z = newZ;
-
-                console.log(`Velocity - X: ${velocityX}, Y: ${velocityY}, Z: ${velocityZ}`);
+                // Assuming data is an array of objects each containing a 'coordinates' array
+                if (data.length > 0 && data[0].coordinates) {
+                    coords = data[0].coordinates; // Take the first person's data for simplicity
+                }
             };
             ws.onerror = function(error) {
                 console.log("WebSocket Error:", error);
@@ -56,17 +38,15 @@
 
         function draw() {
             background(255);
-            let colorChangeRate = (velocityX + velocityY + velocityZ) / 3; // Calculate average velocity
-            console.log("color rate: ", colorChangeRate);
 
-            // Map color change rate to color values
-            let colorVal = map(colorChangeRate, 0, 50, 0, 255); // Adjust range as needed
-            stroke(colorVal, 100, 255 - colorVal); // Set the stroke color based on velocity
-            strokeWeight(2); // Set the thickness of the circle's line
-
-            // Adjust size mapping based on z
-            let size = map(10 * z, 200, 1500, 100, 20); 
-            ellipse(x, y, size/2, size/2); // Draw a circle with size based on z
+            // Draw all received coordinates as circles
+            fill(255, 0, 0); // Red color for the circles
+            noStroke();
+            for (let coord of coords) {
+                // Map z to circle size, assuming z is depth and affects size
+                let size = map(abs(coord.z), 0, 1500, 5, 50);
+                ellipse(coord.x, coord.y, size, size);
+            }
         }
     </script>
 </body>
