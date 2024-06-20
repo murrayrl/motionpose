@@ -12,15 +12,22 @@ output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatt
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 cap = cv2.VideoCapture(0)
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+# cap.set(cv2.CAP_PROP_FPS, 60)
+
+
 
 async def send_coordinates(data):
     uri = "ws://localhost:8765"
     try:
         async with websockets.connect(uri) as websocket:
             await websocket.send(json.dumps(data))
-            print("Data sent successfully for ID:", data['id'])  # Print ID on data send
+            print("good stuff: ", data)
+            # print("Data sent successfully for ID:", data['id'])  # Print ID on data send
     except Exception as e:
         print("Failed to send data:", e)
+        print("failed data: ", data)
 
 async def main():
     while cap.isOpened():
@@ -52,7 +59,7 @@ async def main():
                     boxes.append([x, y, w, h])
                     confidences.append(float(confidence))
 
-        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.6, 0.3)
+        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.2, 0.3)
         people_data = []
         if indexes is not None and len(indexes) > 0:
             indexes = indexes.flatten()
@@ -69,15 +76,15 @@ async def main():
                         abs_y = int(landmark.y * h + y)
                         abs_z = int(landmark.z * 1000)  # Assuming Z needs scaling
                         person_data['coordinates'].append({'x': abs_x, 'y': abs_y, 'z': abs_z})
-                        print("ID:", i, "Coords:", {'x': abs_x, 'y': abs_y, 'z': abs_z})  # Print each coordinate with ID
+                        # print("ID:", i, "Coords:", {'x': abs_x, 'y': abs_y, 'z': abs_z})
                         cv2.circle(frame, (abs_x, abs_y), 5, (0, 255, 0), -1)
 
                 people_data.append(person_data)
-                print("people data: ", people_data)
+                # print("people data: ", people_data)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         
         if people_data:
-            print("data: ", people_data)
+            # print("data: ", people_data)
             await send_coordinates(people_data)
 
         cv2.imshow('Frame', frame)
