@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Graphics</title>
+    <title>Real-Time Person Tracker</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
 </head>
 <body>
     <script>
         let ws;
-        let coords = []; // Array to hold coordinates
+        let people = []; // Array to hold coordinates for each person
 
         function setup() {
             createCanvas(windowWidth, windowHeight);
             background(255);
 
+            // Connect to the WebSocket
             ws = new WebSocket('ws://localhost:8765');
             ws.onopen = function() {
                 console.log("WebSocket is open now.");
@@ -23,10 +24,12 @@
                 const data = JSON.parse(event.data);
                 console.log(data); // Log the full data to see the structure
 
-                // Assuming data is an array of objects each containing a 'coordinates' array
-                if (data.length > 0 && data[0].coordinates) {
-                    coords = data[0].coordinates; // Take the first person's data for simplicity
-                }
+                // Update people data
+                people = data.map(person => ({
+                    x: person.x,
+                    y: person.y,
+                    z: person.z
+                }));
             };
             ws.onerror = function(error) {
                 console.log("WebSocket Error:", error);
@@ -37,15 +40,14 @@
         }
 
         function draw() {
-            background(255);
+            background(255); // Clear the background
 
-            // Draw all received coordinates as circles
+            // Draw circles for each person detected
             fill(255, 0, 0); // Red color for the circles
             noStroke();
-            for (let coord of coords) {
-                // Map z to circle size, assuming z is depth and affects size
-                let size = map(abs(coord.z), 0, 1500, 5, 50);
-                ellipse(coord.x, coord.y, size, size);
+            for (let person of people) {
+                let size = map(abs(person.z), 0, 1000, 10, 50); // Map z to size
+                ellipse(person.x, person.y, size, size); // Draw the circle
             }
         }
     </script>
