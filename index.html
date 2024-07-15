@@ -24,12 +24,24 @@
                 const data = JSON.parse(event.data);
                 console.log(data); // Log the full data to see the structure
 
-                // Update people data
-                people = data.map(person => ({
-                    x: person.x,
-                    y: person.y,
-                    z: person.z
-                }));
+                // Check if keypoints property exists and is an array
+                if (data && Array.isArray(data)) {
+                    // Update people data
+                    people = [];
+                    data.forEach(person => {
+                        if (person.keypoints && Array.isArray(person.keypoints)) {
+                            person.keypoints.forEach(keypoint => {
+                                people.push({
+                                    x: keypoint.x,
+                                    y: keypoint.y,
+                                    label: keypoint.label,
+                                });
+                            });
+                        }
+                    });
+                } else {
+                    console.error("Invalid data format:", data);
+                }
             };
             ws.onerror = function(error) {
                 console.log("WebSocket Error:", error);
@@ -42,12 +54,13 @@
         function draw() {
             background(255); // Clear the background
 
-            // Draw circles for each person detected
+            // Draw circles for each keypoint of each person detected
             fill(255, 0, 0); // Red color for the circles
             noStroke();
-            for (let person of people) {
-                let size = map(abs(person.z), 0, 1000, 10, 50); // Map z to size
-                ellipse(person.x, person.y, size, size); // Draw the circle
+            for (let keypoint of people) {
+                ellipse(keypoint.x, keypoint.y, 10, 10); // Draw the circle
+                fill(0);
+                fill(255, 0, 0);
             }
         }
     </script>

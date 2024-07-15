@@ -1,98 +1,223 @@
+from ultralytics import YOLO
 import cv2
-import mediapipe as mp
-import numpy as np
-import asyncio
+import time
 import websockets
 import json
+import asyncio
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import torch
+from torch.cuda.amp import autocast, GradScaler
 
-# Load YOLO model and initialize MediaPipe Pose
-net = cv2.dnn.readNet("yolov4-tiny.weights", "yolov4-tiny.cfg")
-layer_names = net.getLayerNames()
-output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose()
+# if not torch.cuda.is_available():
+#     raise SystemError("CUDA is not available. Please check your installation.")
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
+model = YOLO('yolov8s-pose.pt').to(device)
 cap = cv2.VideoCapture(0)
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-# cap.set(cv2.CAP_PROP_FPS, 60)
+buffer = []
+buffer_size = 10  # Adjust buffer size as needed
+last_processed_time = time.time()
+frame_interval = 1 / 30  # Target 30 FPS
 
+keypoint_names = [
+    'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
+    'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
+    'left_wrist', 'right_wrist', 'left_hip', 'right_hip', 'left_knee',
+    'right_knee', 'left_ankle', 'right_ankle'
+]
 
+# Define the skeleton structure based on the COCO keypoints
+skeleton = [
+    (0, 1), (0, 2), (1, 3), (2, 4),  # Head
+    (5, 6),  # Shoulders
+    (5, 7), (7, 9), (6, 8), (8, 10),  # Arms
+    (5, 11), (6, 12), (11, 12),  # Torso
+    (11, 13), (13, 15), (12, 14), (14, 16)  # Legs
+]
+
+# Initialize a dictionary to store the motion of keypoints
+motion_data = {name: [] for name in keypoint_names}
+frame_data = []  # To store the frames for video
 
 async def send_coordinates(data):
     uri = "ws://localhost:8765"
     try:
         async with websockets.connect(uri) as websocket:
             await websocket.send(json.dumps(data))
-            print("good stuff: ", data)
-            # print("Data sent successfully for ID:", data['id'])  # Print ID on data send
+            print("Data sent successfully")
     except Exception as e:
+        print("data: ", data)
         print("Failed to send data:", e)
-        print("failed data: ", data)
+
+def draw_keypoints(frame, keypoints):
+    for person_keypoints in keypoints:
+        kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+        for i, (x, y, conf) in enumerate(kpts):
+            if conf > 0.5:  # Only consider confident keypoints
+                cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
+                cv2.putText(frame, keypoint_names[i], (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                # Store the keypoint motion data
+                motion_data[keypoint_names[i]].append((x, y))
+        # Draw skeleton
+        for connection in skeleton:
+            if kpts[connection[0], 2] > 0.5 and kpts[connection[1], 2] > 0.5:
+                cv2.line(frame, (int(kpts[connection[0], 0]), int(kpts[connection[0], 1])),
+                         (int(kpts[connection[1], 0]), int(kpts[connection[1], 1])), (255, 0, 0), 2)
+    return frame
+
+def calculate_service_delay(D_prev_q, D_prev_s, T_a, D_curr_s):
+    if (D_prev_q + D_prev_s - T_a > 0):
+        return D_prev_q + D_prev_s + T_a + D_curr_s
+    else:
+        return D_curr_s
 
 async def main():
+    global last_processed_time
+    D_prev_q = 0
+    D_prev_s = 0
+    T_a = frame_interval
+
+    scaler = GradScaler()
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
-            print("Failed to grab frame")
             break
 
-        height, width, _ = frame.shape
-        blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-        net.setInput(blob)
-        outs = net.forward(output_layers)
+        current_time = time.time()
+        buffer.append((frame, current_time))
 
-        boxes = []
-        confidences = []
+        coordinates_data = []
 
-        for out in outs:
-            for detection in out:
-                scores = detection[5:]
-                class_id = np.argmax(scores)
-                confidence = scores[class_id]
-                if confidence > 0.6:
-                    center_x = int(detection[0] * width)
-                    center_y = int(detection[1] * height)
-                    w = int(detection[2] * width)
-                    h = int(detection[3] * height)
-                    x = max(0, int(center_x - w / 2))
-                    y = max(0, int(center_y - h / 2))
-                    boxes.append([x, y, w, h])
-                    confidences.append(float(confidence))
+        # Drop older frames if buffer exceeds size
+        if len(buffer) > buffer_size:
+            buffer.pop(0)
 
-        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.2, 0.3)
-        people_data = []
-        if indexes is not None and len(indexes) > 0:
-            indexes = indexes.flatten()
-            for i, index in enumerate(indexes):
-                x, y, w, h = boxes[index]
-                roi = frame[y:y + h, x:x + w]
-                roi_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
-                results = pose.process(roi_rgb)
+        # Process the frame if enough time has passed
+        if current_time - last_processed_time >= frame_interval:
+            frame_to_process, timestamp = buffer.pop(0)
+            start_time = time.time()
 
-                person_data = {'coordinates': [], 'id': i}
-                if results.pose_landmarks:
-                    for landmark in results.pose_landmarks.landmark:
-                        abs_x = int(landmark.x * w + x)
-                        abs_y = int(landmark.y * h + y)
-                        abs_z = int(landmark.z * 1000)  # Assuming Z needs scaling
-                        person_data['coordinates'].append({'x': abs_x, 'y': abs_y, 'z': abs_z})
-                        # print("ID:", i, "Coords:", {'x': abs_x, 'y': abs_y, 'z': abs_z})
-                        cv2.circle(frame, (abs_x, abs_y), 5, (0, 255, 0), -1)
+            # Pre-process the frame
+            frame_to_process_resized = cv2.resize(frame_to_process, (640, 640))
+            frame_to_process_rgb = cv2.cvtColor(frame_to_process_resized, cv2.COLOR_BGR2RGB)
+            frame_to_process = frame_to_process_rgb.transpose(2, 0, 1)  # HWC to CHW
+            frame_to_process = np.ascontiguousarray(frame_to_process)
+            frame_to_process = torch.from_numpy(frame_to_process).float().div(255.0).unsqueeze(0).to(device)
 
-                people_data.append(person_data)
-                # print("people data: ", people_data)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        
-        if people_data:
-            # print("data: ", people_data)
-            await send_coordinates(people_data)
+            with autocast():
+                results = model(frame_to_process)
 
-        cv2.imshow('Frame', frame)
-        if cv2.waitKey(5) & 0xFF == 27:
+            for result in results:
+                keypoints = result.keypoints  # Keypoints outputs
+                # Check if keypoints are detected
+                if keypoints is not None:
+                    for i, person_keypoints in enumerate(keypoints.data):
+                        kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+                        person_data = {'person': i+1, 'keypoints': []}
+                        #print(f"Person {i+1} Keypoints:")
+                        person_data = {'person': i+1, 'keypoints': []}
+                        for j, (x, y, conf) in enumerate(kpts):
+                            if conf > 0.5:  # Only consider confident keypoints
+                                #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
+                                person_data['keypoints'].append({
+                                    'label': keypoint_names[j],
+                                    'x': float(x),
+                                    'y': float(y),
+                                    'confidence': float(conf)
+                                })
+                        coordinates_data.append(person_data)
+                    # Draw keypoints on the frame
+                    frame = draw_keypoints(frame_to_process_resized, keypoints.data)
+                    
+                    # Ensure the frame has the correct format for imshow
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                    # Display the frame
+                    cv2.imshow('YOLO Pose Estimation', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+
+                    # Save the result frame
+                    frame_data.append(frame)
+                    cv2.imwrite("result.jpg", frame)
+                
+                if coordinates_data:
+                    await send_coordinates(coordinates_data)
+                
+
+            end_time = time.time()
+            D_curr_s = end_time - start_time
+            service_delay = calculate_service_delay(D_prev_q, D_prev_s, T_a, D_curr_s)
+            D_prev_q = D_curr_s
+            D_prev_s = service_delay
+
+            print(f"Service Delay: {service_delay:.4f} seconds")
+            last_processed_time = current_time
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
 
+def plot_motion():
+    plt.figure(figsize=(12, 8))
+    for keypoint, positions in motion_data.items():
+        if positions:  # Only plot if there are positions recorded
+            x_coords, y_coords = zip(*positions)
+            plt.plot(x_coords, y_coords, label=keypoint)
+
+    plt.title("Motion of Keypoints")
+    plt.xlabel("X-coordinate")
+    plt.ylabel("Y-coordinate")
+    plt.legend()
+    plt.gca().invert_yaxis()  # Invert y-axis to match the image coordinate system
+    plt.savefig("motion_plot.png")
+    plt.show()
+
+def save_motion_data():
+    np.savez("motion_data.npz", **motion_data)
+
+def save_video(frame_data, filename='output.mp4', fps=30):
+    height, width, layers = frame_data[0].shape
+    size = (width, height)
+    out = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
+    for frame in frame_data:
+        out.write(frame)
+    out.release()
+
+def create_animation():
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.set_title('Motion of Keypoints')
+    ax.set_xlim([0, 1920])
+    ax.set_ylim([0, 1080])
+    ax.invert_yaxis()  # Invert y-axis to match the image coordinate system
+
+    lines = {keypoint: ax.plot([], [], marker='o', linestyle='-', label=keypoint)[0] for keypoint in keypoint_names}
+    ax.legend()
+
+    def init():
+        for line in lines.values():
+            line.set_data([], [])
+        return lines.values()
+
+    def update(frame_number):
+        for keypoint, line in lines.items():
+            if len(motion_data[keypoint]) > frame_number:
+                x, y = zip(*motion_data[keypoint][:frame_number + 1])
+                line.set_data(x, y)
+        return lines.values()
+
+    ani = animation.FuncAnimation(fig, update, frames=len(frame_data), init_func=init, blit=True, interval=1000/30)
+    ani.save('motion_animation.mp4', writer='ffmpeg', fps=30)
+    plt.show()
+
 if __name__ == "__main__":
     asyncio.run(main())
+save_motion_data()
+save_video(frame_data)
+plot_motion()
