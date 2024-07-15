@@ -5,8 +5,13 @@ import asyncio
 import websockets
 import json
 import time
+import torch
+from torch.cuda.amp import autocast, GradScaler
+
 
 # Load YOLO model and initialize MediaPipe Pose
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 net = cv2.dnn.readNet("yolov4-tiny.weights", "yolov4-tiny.cfg")
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
@@ -61,7 +66,7 @@ async def main():
                     boxes.append([x, y, w, h])
                     confidences.append(float(confidence))
 
-        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.2, 0.3)
+        indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.4, 0.3)
         if indexes is not None and len(indexes) > 0:
             indexes = indexes.flatten()
             for index in indexes:
