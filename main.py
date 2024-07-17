@@ -15,6 +15,8 @@ from pythonosc import udp_client
 ip = "127.0.0.1"  # The IP address of the computer running Isadora
 port = 1234      # Isadora default port
 client = udp_client.SimpleUDPClient(ip, port)
+address_l = "/isadora-multi/1"
+address_r = "/isadora-multi/2"
 
 # if not torch.cuda.is_available():
 #     raise SystemError("CUDA is not available. Please check your installation.")
@@ -50,14 +52,23 @@ motion_data = {name: [] for name in keypoint_names}
 frame_data = []  # To store the frames for video
 
 async def send_coordinates(data):
-    uri = "ws://localhost:8765"
+    try:
+        
+
+
+    except Exception as e:
+        print("data not sent", e)
+
+
+"""     uri = "ws://localhost:8765"
     try:
         async with websockets.connect(uri) as websocket:
             await websocket.send(json.dumps(data))
             print("Data sent successfully")
     except Exception as e:
         print("data: ", data)
-        print("Failed to send data:", e)
+        print("Failed to send data:", e) """
+
 
 def draw_keypoints(frame, keypoints):
     for person_keypoints in keypoints:
