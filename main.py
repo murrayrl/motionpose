@@ -15,8 +15,8 @@ from pythonosc import udp_client
 ip = "127.0.0.1"  # The IP address of the computer running Isadora
 port = 1234      # Isadora default port
 client = udp_client.SimpleUDPClient(ip, port)
-address_l = "/isadora-multi/1"
-address_r = "/isadora-multi/2"
+address_x = "/isadora-multi/1"
+address_y = "/isadora-multi/2"
 
 # if not torch.cuda.is_available():
 #     raise SystemError("CUDA is not available. Please check your installation.")
@@ -51,23 +51,26 @@ skeleton = [
 motion_data = {name: [] for name in keypoint_names}
 frame_data = []  # To store the frames for video
 
+def send_osc(data):
+    for keypoint in data:
+        list_x = []
+        list_y = []
+        list_x.append(keypoint['x'])
+        list_y.append(keypoint['y'])
+
+    client.send_message(address_x, [keypoint['x']])
+    client.send_message(address_y, [keypoint['y']])
+
+
 async def send_coordinates(data):
-    try:
-        
-
-
-    except Exception as e:
-        print("data not sent", e)
-
-
-"""     uri = "ws://localhost:8765"
+    uri = "ws://localhost:8765"
     try:
         async with websockets.connect(uri) as websocket:
             await websocket.send(json.dumps(data))
             print("Data sent successfully")
     except Exception as e:
         print("data: ", data)
-        print("Failed to send data:", e) """
+        print("Failed to send data:", e) 
 
 
 def draw_keypoints(frame, keypoints):
@@ -165,6 +168,7 @@ async def main():
                 
                 if coordinates_data:
                     await send_coordinates(coordinates_data)
+                    send_osc(coordinates_data)
                 
 
             end_time = time.time()
