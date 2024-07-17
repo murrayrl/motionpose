@@ -9,6 +9,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import torch
 from torch.cuda.amp import autocast, GradScaler
+from pythonosc import udp_client
+
+# Set up the OSC client
+ip = "127.0.0.1"  # The IP address of the computer running Isadora
+port = 1234      # Isadora default port
+client = udp_client.SimpleUDPClient(ip, port)
 
 # if not torch.cuda.is_available():
 #     raise SystemError("CUDA is not available. Please check your installation.")
