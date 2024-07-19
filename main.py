@@ -51,15 +51,10 @@ skeleton = [
 motion_data = {name: [] for name in keypoint_names}
 frame_data = []  # To store the frames for video
 
-def send_osc(data):
-    for keypoint in data:
-        list_x = []
-        list_y = []
-        list_x.append(keypoint['x'])
-        list_y.append(keypoint['y'])
+def send_osc(x_list, y_list):
 
-    client.send_message(address_x, [keypoint['x']])
-    client.send_message(address_y, [keypoint['y']])
+    client.send_message(address_x, x_list)
+    client.send_message(address_y, y_list)
 
 
 async def send_coordinates(data):
@@ -134,6 +129,8 @@ async def main():
 
             for result in results:
                 keypoints = result.keypoints  # Keypoints outputs
+                list_x = []
+                list_y = [] 
                 # Check if keypoints are detected
                 if keypoints is not None:
                     for i, person_keypoints in enumerate(keypoints.data):
@@ -150,6 +147,9 @@ async def main():
                                     'y': float(y),
                                     'confidence': float(conf)
                                 })
+                                list_x.append(float(x))
+                                list_y.append(float(y))
+
                         coordinates_data.append(person_data)
                     # Draw keypoints on the frame
                     frame = draw_keypoints(frame_to_process_resized, keypoints.data)
@@ -168,7 +168,7 @@ async def main():
                 
                 if coordinates_data:
                     await send_coordinates(coordinates_data)
-                    send_osc(coordinates_data)
+                    send_osc(list_x, list_y)
                 
 
             end_time = time.time()
@@ -239,6 +239,8 @@ def create_animation():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
 save_motion_data()
 save_video(frame_data)
 plot_motion()
