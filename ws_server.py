@@ -2,43 +2,25 @@ import asyncio
 import websockets
 import json
 
-connected_clients = set()
+clients = set()
 
-async def register_client(websocket):
-    print("Client Connected!")
-    connected_clients.add(websocket)
-
-async def unregister_client(websocket):
-    print("Client Disconnected!")
-
-    connected_clients.remove(websocket)
-
-async def send_coordinates(distance, x, y):
-    message = json.dumps({'distance': distance, 'x': x, 'y': y})
-    if connected_clients:  # Check if there are any connected clients
-        tasks = [asyncio.create_task(client.send(message)) for client in connected_clients]
-        await asyncio.wait(tasks)
-
-async def websocket_handler(websocket, path):
-    await register_client(websocket)
+async def register(websocket):
+    clients.add(websocket)
     try:
-        async for message in websocket:
-            print(f"Received message: {message}")
-            data = json.loads(message)
-            distance, x, y = data['distance'], data['x'], data['y']
-            await send_coordinates(distance, x, y)  # Broadcast the coordinates to all connected clients
+        await websocket.wait_closed()
     finally:
-        await unregister_client(websocket)
+        clients.remove(websocket)
 
-async def main():
-    try:
-        async with websockets.serve(websocket_handler, "localhost", 5678):
-            print("WebSocket server started on ws://localhost:5678")
-            await asyncio.Future()  # Run the server forever
-    except KeyboardInterrupt:
-        print("WebSocket server stopped")
+async def handler(websocket, path):
+    await register(websocket)
+    async for message in websocket:
+        print(f"Received: {message}")
+        for client in clients:
+            if client != websocket:
+                await client.send(message)
 
-    
+start_server = websockets.serve(handler, "localhost", 8765)
 
-if __name__ == '__main__':
-    asyncio.run(main())
+print("WebSocket server started on ws://localhost:8765")
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
