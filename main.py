@@ -132,7 +132,7 @@ async def main():
                 list_x = []
                 list_y = [] 
                 # Check if keypoints are detected
-                if keypoints is not None:
+                if keypoints is not None and len(keypoints.data) > 0:
                     for i, person_keypoints in enumerate(keypoints.data):
                         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
                         person_data = {'person': i+1, 'keypoints': []}
