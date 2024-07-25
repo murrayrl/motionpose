@@ -56,6 +56,8 @@ async def send_coordinates(data):
 def draw_keypoints(frame, keypoints):
     for person_keypoints in keypoints:
         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+        if kpts.size == 0:
+            continue
         for i, (x, y, conf) in enumerate(kpts):
             if conf > 0.5:  # Only consider confident keypoints
                 cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
@@ -112,42 +114,43 @@ async def main():
             with autocast():
                 results = model(frame_to_process)
 
-            for result in results:
-                keypoints = result.keypoints  # Keypoints outputs
-                # Check if keypoints are detected
-                if keypoints is not None:
-                    for i, person_keypoints in enumerate(keypoints.data):
-                        kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
-                        person_data = {'person': i+1, 'keypoints': []}
-                        #print(f"Person {i+1} Keypoints:")
-                        person_data = {'person': i+1, 'keypoints': []}
-                        for j, (x, y, conf) in enumerate(kpts):
-                            if conf > 0.5:  # Only consider confident keypoints
-                                #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
-                                person_data['keypoints'].append({
-                                    'label': keypoint_names[j],
-                                    'x': float(x),
-                                    'y': float(y),
-                                    'confidence': float(conf)
-                                })
-                        coordinates_data.append(person_data)
-                    # Draw keypoints on the frame
-                    frame = draw_keypoints(frame_to_process_resized, keypoints.data)
+            if results:
+                for result in results:
+                    keypoints = result.keypoints  # Keypoints outputs
+                    # Check if keypoints are detected
+                    if keypoints is not None and len(keypoints.data) > 0:
+                        for i, person_keypoints in enumerate(keypoints.data):
+                            kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+                            person_data = {'person': i+1, 'keypoints': []}
+                            #print(f"Person {i+1} Keypoints:")
+                            person_data = {'person': i+1, 'keypoints': []}
+                            for j, (x, y, conf) in enumerate(kpts):
+                                if conf > 0.5:  # Only consider confident keypoints
+                                    #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
+                                    person_data['keypoints'].append({
+                                        'label': keypoint_names[j],
+                                        'x': float(x),
+                                        'y': float(y),
+                                        'confidence': float(conf)
+                                    })
+                            coordinates_data.append(person_data)
+                        # Draw keypoints on the frame
+                        frame = draw_keypoints(frame_to_process_resized, keypoints.data)
+                        
+                        # Ensure the frame has the correct format for imshow
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                        # Display the frame
+                        cv2.imshow('YOLO Pose Estimation', frame)
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+
+                        # Save the result frame
+                        frame_data.append(frame)
+                        cv2.imwrite("result.jpg", frame)
                     
-                    # Ensure the frame has the correct format for imshow
-                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-                    # Display the frame
-                    cv2.imshow('YOLO Pose Estimation', frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-
-                    # Save the result frame
-                    frame_data.append(frame)
-                    cv2.imwrite("result.jpg", frame)
-                
-                if coordinates_data:
-                    await send_coordinates(coordinates_data)
+                    if coordinates_data:
+                        await send_coordinates(coordinates_data)
                 
 
             end_time = time.time()
