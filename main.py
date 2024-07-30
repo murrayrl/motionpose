@@ -81,6 +81,8 @@ def draw_keypoints(frame, keypoints):
     for person_keypoints in keypoints:
         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
         for i, (x, y, conf) in enumerate(kpts):
+            if i not in [5,6,11,12]:
+                continue
             if conf > 0.5:  # Only consider confident keypoints
                 cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
                 cv2.putText(frame, keypoint_names[i], (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -148,6 +150,8 @@ async def main():
                         #print(f"Person {i+1} Keypoints:")
                         person_data = {'person': i+1, 'keypoints': []}
                         for j, (x, y, conf) in enumerate(kpts):
+                            if j not in [5,6,11,12]:
+                                continue
                             if conf > 0.5:  # Only consider confident keypoints
                                 #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
                                 person_data['keypoints'].append({
