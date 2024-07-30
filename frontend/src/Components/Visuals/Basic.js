@@ -20,7 +20,7 @@ const Basic = () => {
         };
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data);
-          console.log('Received data:', data); // Log the full data to see the structure
+          
 
           // Check if keypoints property exists and is an array
           if (data && Array.isArray(data)) {
