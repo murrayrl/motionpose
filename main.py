@@ -31,20 +31,29 @@ buffer_size = 10  # Adjust buffer size as needed
 last_processed_time = time.time()
 frame_interval = 1 / 30  # Target 30 FPS
 
-keypoint_names = [
+""" keypoint_names = [
     'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
     'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
     'left_wrist', 'right_wrist', 'left_hip', 'right_hip', 'left_knee',
     'right_knee', 'left_ankle', 'right_ankle'
+] """
+
+keypoint_names = [
+    'left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'
 ]
 
 # Define the skeleton structure based on the COCO keypoints
-skeleton = [
+""" skeleton = [
     (0, 1), (0, 2), (1, 3), (2, 4),  # Head
     (5, 6),  # Shoulders
     (5, 7), (7, 9), (6, 8), (8, 10),  # Arms
     (5, 11), (6, 12), (11, 12),  # Torso
     (11, 13), (13, 15), (12, 14), (14, 16)  # Legs
+] """
+
+skeleton = [
+    (5, 6), #shoulders
+    (11, 12) #hips
 ]
 
 # Initialize a dictionary to store the motion of keypoints
@@ -69,6 +78,7 @@ async def send_coordinates(data):
 
 
 def draw_keypoints(frame, keypoints):
+    print("entered draw function")
     for person_keypoints in keypoints:
         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
         for i, (x, y, conf) in enumerate(kpts):
