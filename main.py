@@ -31,30 +31,24 @@ buffer_size = 10  # Adjust buffer size as needed
 last_processed_time = time.time()
 frame_interval = 1 / 30  # Target 30 FPS
 
-""" keypoint_names = [
+keypoint_names = [
     'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
     'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
     'left_wrist', 'right_wrist', 'left_hip', 'right_hip', 'left_knee',
     'right_knee', 'left_ankle', 'right_ankle'
-] """
+] 
 
-keypoint_names = [
-    'left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'
-]
+kpt_list = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
 
 # Define the skeleton structure based on the COCO keypoints
-""" skeleton = [
+skeleton = [
     (0, 1), (0, 2), (1, 3), (2, 4),  # Head
     (5, 6),  # Shoulders
     (5, 7), (7, 9), (6, 8), (8, 10),  # Arms
     (5, 11), (6, 12), (11, 12),  # Torso
     (11, 13), (13, 15), (12, 14), (14, 16)  # Legs
-] """
+] 
 
-skeleton = [
-    (5, 6), #shoulders
-    (11, 12) #hips
-]
 
 # Initialize a dictionary to store the motion of keypoints
 motion_data = {name: [] for name in keypoint_names}
@@ -81,8 +75,6 @@ def draw_keypoints(frame, keypoints):
     for person_keypoints in keypoints:
         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
         for i, (x, y, conf) in enumerate(kpts):
-            if i not in [5,6,11,12]:
-                continue
             if conf > 0.5:  # Only consider confident keypoints
                 cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
                 cv2.putText(frame, keypoint_names[i], (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -150,8 +142,6 @@ async def main():
                         #print(f"Person {i+1} Keypoints:")
                         person_data = {'person': i+1, 'keypoints': []}
                         for j, (x, y, conf) in enumerate(kpts):
-                            if j not in [5,6,11,12]:
-                                continue
                             if conf > 0.5:  # Only consider confident keypoints
                                 #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
                                 person_data['keypoints'].append({
@@ -160,8 +150,9 @@ async def main():
                                     'y': float(y),
                                     'confidence': float(conf)
                                 })
-                                list_x.append(float(x))
-                                list_y.append(float(y))
+                                if (keypoint_names[j] in kpt_list):
+                                    list_x.append(float(x))
+                                    list_y.append(float(y))
 
                         coordinates_data.append(person_data)
                     # Draw keypoints on the frame
