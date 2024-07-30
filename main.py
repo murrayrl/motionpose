@@ -78,7 +78,6 @@ async def send_coordinates(data):
 
 
 def draw_keypoints(frame, keypoints):
-    print("entered draw function")
     for person_keypoints in keypoints:
         kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
         for i, (x, y, conf) in enumerate(kpts):
