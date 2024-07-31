@@ -18,6 +18,7 @@ client = udp_client.SimpleUDPClient(ip, port)
 address_x = "/isadora-multi/1"
 address_y = "/isadora-multi/2"
 
+
 # if not torch.cuda.is_available():
 #     raise SystemError("CUDA is not available. Please check your installation.")
 
@@ -56,8 +57,12 @@ frame_data = []  # To store the frames for video
 
 def send_osc(x_list, y_list):
 
-    client.send_message(address_x, x_list)
-    client.send_message(address_y, y_list)
+    for (key1, value1), (key2, value2) in zip(x_list.items(), y_list.items()):
+        channel_x = str(address_x + '/' + key1)
+        channel_y = str(address_y + '/' + key2)
+        client.send_message(channel_x, value1)
+        client.send_message(channel_y, value2)
+        
 
 
 async def send_coordinates(data):
@@ -132,8 +137,8 @@ async def main():
 
             for result in results:
                 keypoints = result.keypoints  # Keypoints outputs
-                list_x = []
-                list_y = [] 
+                list_x = {}
+                list_y = {} 
                 # Check if keypoints are detected
                 if keypoints is not None and len(keypoints.data) > 0:
                     for i, person_keypoints in enumerate(keypoints.data):
@@ -151,8 +156,8 @@ async def main():
                                     'confidence': float(conf)
                                 })
                                 if (keypoint_names[j] in kpt_list):
-                                    list_x.append(float(x))
-                                    list_y.append(float(y))
+                                    list_x[keypoint_names[j]]= float(x)
+                                    list_y[keypoint_names[j]] = float(y)
 
                         coordinates_data.append(person_data)
                     # Draw keypoints on the frame
