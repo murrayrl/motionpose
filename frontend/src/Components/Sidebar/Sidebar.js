@@ -17,6 +17,8 @@ const Sidebar = ({ setSelectedVisual }) => {
         <li onClick={() => setSelectedVisual('basic')}>Basic</li>
         <li onClick={() => setSelectedVisual('ripple')}>Ripple</li>
         <li onClick={() => setSelectedVisual('3d')}>3D</li>
+        <li onClick={() => setSelectedVisual('bubbles')}>Bubbles</li>
+        <li onClick={() => setSelectedVisual('terrain')} >Terrain</li>
       </ul>
     </div>
   );
