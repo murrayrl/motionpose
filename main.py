@@ -39,7 +39,7 @@ keypoint_names = [
     'right_knee', 'left_ankle', 'right_ankle'
 ] 
 
-kpt_list = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
+kpt_list = ['left_shoulder', 'right_shoulder']
 
 # Define the skeleton structure based on the COCO keypoints
 skeleton = [
@@ -60,6 +60,8 @@ def send_osc(x_list, y_list):
     for (key1, value1), (key2, value2) in zip(x_list.items(), y_list.items()):
         channel_x = str(address_x + '/' + key1)
         channel_y = str(address_y + '/' + key2)
+        print(channel_y)
+        print(channel_x)
         client.send_message(channel_x, value1)
         client.send_message(channel_y, value2)
         
@@ -159,8 +161,8 @@ async def main():
                                         'confidence': float(conf)
                                     })
                                     if (keypoint_names[j] in kpt_list):
-                                        list_x[keypoint_names[j]]= float(x)
-                                        list_y[keypoint_names[j]] = float(y)
+                                        list_x[keypoint_names[j]+"/p" + str(i+1)]= float(x)
+                                        list_y[keypoint_names[j] + "/p" + str(i+1)] = float(y)
 
                             coordinates_data.append(person_data)
                         # Draw keypoints on the frame
