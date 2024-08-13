@@ -1,108 +1,90 @@
-import React, { Component } from 'react';
+import React, { useEffect, useRef } from 'react';
 import p5 from 'p5';
 
-class Terrain extends Component {
-  constructor(props) {
-    super(props);
-    this.myRef = React.createRef();
-    this.state = {
-      people: []
-    };
-  }
+const Terrain = () => {
+  const sketchRef = useRef();
+  const ws = useRef(null);
+  const wristDistance = useRef(100); // Initial distance
 
-  componentDidMount() {
-    this.myP5 = new p5(this.sketch, this.myRef.current);
+  useEffect(() => {
+    const sketch = new p5((p) => {
+      let cols, rows;
+      let scl = 20; // Scale of the terrain
+      let w = 1400; // Width of the terrain
+      let h = 1000; // Height of the terrain
+      let terrain = [];
 
-    // Initialize WebSocket
-    this.ws = new WebSocket('ws://localhost:8765');
-    this.ws.onopen = () => console.log("WebSocket is open now.");
-    this.ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      p.setup = () => {
+        p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+        cols = w / scl;
+        rows = h / scl;
 
-      if (data && Array.isArray(data)) {
-        this.setState({ people: data });
-      } else {
-        console.error("Invalid data format:", data);
-      }
-    };
-    this.ws.onerror = (error) => console.log("WebSocket Error:", error);
-    this.ws.onclose = () => console.log("WebSocket is closed now.");
-  }
-
-  componentWillUnmount() {
-    this.myP5.remove();  // Clean up the p5 instance on unmount
-    this.ws.close();     // Close WebSocket connection
-  }
-
-  sketch = (p) => {
-    let terrain = [];
-    let baseTerrain = [];
-    let cols, rows;
-    const scl = 20;
-    const w = 1400;
-    const h = 1000;
-    let spreadFactor = 1;
-
-    p.setup = () => {
-      p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
-      cols = Math.floor(w / scl);
-      rows = Math.floor(h / scl);
-
-      // Initialize terrain
-      for (let x = 0; x < cols; x++) {
-        terrain[x] = [];
-        baseTerrain[x] = [];
-        for (let y = 0; y < rows; y++) {
-          baseTerrain[x][y] = p.map(p.noise(x * 0.2, y * 0.2), 0, 1, -100, 100);
-          terrain[x][y] = baseTerrain[x][y];
-        }
-      }
-    };
-
-    p.draw = () => {
-      p.background(0);  // Clear the background
-
-      // Calculate arm spread and update spreadFactor
-      if (this.state.people.length > 0) {
-        const leftHand = this.state.people.find(point => point.label === 'left_wrist');
-        const rightHand = this.state.people.find(point => point.label === 'right_wrist');
-        if (leftHand && rightHand) {
-          const armSpread = p.dist(leftHand.x, leftHand.y, rightHand.x, rightHand.y);
-          spreadFactor = p.map(armSpread, 0, p.windowWidth, 0.5, 2);
-        }
-      }
-
-      // Update terrain heights based on spreadFactor
-      for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < rows; y++) {
-          terrain[x][y] = baseTerrain[x][y] * spreadFactor;
-        }
-      }
-
-      p.stroke(255);
-      p.noFill();
-      p.translate(0, 50);
-      p.rotateX(p.PI / 3);
-      p.translate(-w / 2, -h / 2);
-
-      for (let y = 0; y < rows - 1; y++) {
-        p.beginShape(p.TRIANGLE_STRIP);
+        // Initialize terrain array
         for (let x = 0; x < cols; x++) {
-          p.vertex(x * scl, y * scl, terrain[x][y]);
-          p.vertex(x * scl, (y + 1) * scl, terrain[x][y + 1]);
+          terrain[x] = [];
+          for (let y = 0; y < rows; y++) {
+            terrain[x][y] = 0; // Default height
+          }
         }
-        p.endShape();
+
+        // Setup WebSocket connection
+        ws.current = new WebSocket('ws://localhost:8765');
+        ws.current.onopen = () => console.log("WebSocket is open now.");
+        ws.current.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data && Array.isArray(data)) {
+            data.forEach(person => {
+              const rightWrist = person.keypoints.find(k => k.label === "right_wrist");
+              const leftWrist = person.keypoints.find(k => k.label === "left_wrist");
+
+              if (rightWrist && leftWrist) {
+                const dist = p.dist(rightWrist.x, rightWrist.y, leftWrist.x, leftWrist.y);
+                wristDistance.current = p.map(dist, 0, p.windowWidth * 0.5, 500, 0); // Inverted range for the effect
+              }
+            });
+          }
+        };
+        ws.current.onerror = (error) => console.log("WebSocket Error:", error);
+        ws.current.onclose = () => console.log("WebSocket is closed now.");
+      };
+
+      p.draw = () => {
+        p.background(0);
+        p.rotateX(p.PI / 3);
+        p.translate(-w / 2, -h / 2);
+        
+        let yoff = 0;
+        for (let y = 0; y < rows; y++) {
+          let xoff = 0;
+          for (let x = 0; x < cols; x++) {
+            terrain[x][y] = p.map(p.noise(xoff, yoff), 0, 1, -wristDistance.current, wristDistance.current);
+            xoff += 0.05; // Adjust for more pronounced changes in the terrain
+          }
+          yoff += 0.05;
+        }
+
+        // Draw the terrain
+        for (let y = 0; y < rows - 1; y++) {
+          p.beginShape(p.TRIANGLE_STRIP);
+          for (let x = 0; x < cols; x++) {
+            p.fill(200, 200, 200, 150);
+            p.vertex(x * scl, y * scl, terrain[x][y]);
+            p.vertex(x * scl, (y + 1) * scl, terrain[x][y + 1]);
+          }
+          p.endShape();
+        }
+      };
+    }, sketchRef.current);
+
+    return () => {
+      sketch.remove();
+      if (ws.current) {
+        ws.current.close();
       }
     };
+  }, []); // Empty dependency array ensures setup runs only once
 
-    p.windowResized = () => {
-      p.resizeCanvas(p.windowWidth, p.windowHeight);
-    };
-  }
-
-  render() {
-    return <div ref={this.myRef}></div>;
-  }
-}
+  return <div ref={sketchRef}></div>;
+};
 
 export default Terrain;

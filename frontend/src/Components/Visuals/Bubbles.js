@@ -9,7 +9,7 @@ const Bubbles = () => {
 
   useEffect(() => {
     const sketch = new p5((p) => {
-      let numBalls = 13;
+      let numBalls = 15;
       let spring = 0.05;
       let gravity = 0.03;
       let friction = -0.9;
@@ -119,6 +119,25 @@ const Bubbles = () => {
         // Check for collisions with the right wrist keypoint and remove colliding bubbles
         balls = balls.filter(ball => !ball.isColliding(previousPosition.current.x, previousPosition.current.y));
 
+        // If only one bubble is left, regenerate the bubbles
+        if (balls.length === 1) {
+          for (let i = 0; i < numBalls; i++) {
+            balls[i] = new Ball(
+              p.random(p.width),
+              p.random(p.height),
+              p.random(30, 70),
+              i,
+              balls,
+              sensitivity
+            );
+          }
+        }
+
+        // Apply the transformation to flip the x-axis
+        p.push(); // Save the current transformation matrix
+        p.translate(p.width, 0); // Move the origin to the top-right corner
+        p.scale(-1, 1); // Flip the x-axis
+
         // Draw bubbles
         p.fill(255, 204);  // Reset fill color to white for the bubbles
         balls.forEach(ball => {
@@ -130,6 +149,8 @@ const Bubbles = () => {
         // Draw right wrist keypoint as a red dot
         p.fill(255, 0, 0);  // Set fill color to red for the right wrist keypoint
         p.ellipse(previousPosition.current.x, previousPosition.current.y, 10, 10);
+
+        p.pop(); // Restore the transformation matrix
       };
     }, sketchRef.current);
 
