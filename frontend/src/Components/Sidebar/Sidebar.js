@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ setSelectedVisual }) => {
+const Sidebar = ({ setSelectedVisual, selectedVisual }) => {
   const [isOpen, setIsOpen] = useState(true);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
   };
+
+  const visualsList = [
+    { name: 'Basic', value: 'basic' },
+    { name: 'Ripple', value: 'ripple' },
+    { name: '3D', value: '3d' },
+    { name: 'Cherry Blossom', value: 'cherry-blossom' },
+    { name: 'Droplets', value: 'droplets' },
+    { name: 'Bubbles', value: 'bubbles' },
+    { name: 'Terrain', value: 'terrain' },
+  ];
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
@@ -14,13 +24,15 @@ const Sidebar = ({ setSelectedVisual }) => {
         {isOpen ? 'Collapse' : 'Expand'}
       </button>
       <ul>
-        <li onClick={() => setSelectedVisual('basic')}>Basic</li>
-        <li onClick={() => setSelectedVisual('ripple')}>Ripple</li>
-        <li onClick={() => setSelectedVisual('3d')}>3D</li>
-        <li onClick={() => setSelectedVisual('cherry-blossom')}>Cherry Blossom</li>
-        <li onClick={() => setSelectedVisual('droplets')}>Droplets</li>
-        <li onClick={() => setSelectedVisual('bubbles')}>Bubbles</li>
-        <li onClick={() => setSelectedVisual('terrain')}>Terrain</li>
+        {visualsList.map((visual) => (
+          <li
+            key={visual.value}
+            onClick={() => setSelectedVisual(visual.value)}
+            className={selectedVisual === visual.value ? 'active' : ''}
+          >
+            {visual.name}
+          </li>
+        ))}
       </ul>
     </div>
   );

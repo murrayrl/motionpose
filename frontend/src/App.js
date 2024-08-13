@@ -8,7 +8,7 @@ function App() {
 
   return (
     <div className="App">
-      <Sidebar setSelectedVisual={setSelectedVisual} />
+      <Sidebar setSelectedVisual={setSelectedVisual} selectedVisual={selectedVisual} />
       <div className="main-view">
         <Visuals visual={selectedVisual} setSelectedVisual={setSelectedVisual} />
       </div>

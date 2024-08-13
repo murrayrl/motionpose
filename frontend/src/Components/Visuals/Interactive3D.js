@@ -55,9 +55,12 @@ const Interactive3D = () => {
 
       p.draw = () => {
         p.background(0);
-        // Enhanced Lights and Material
-        p.ambientLight(100); // Increased ambient light for brighter appearance
-        p.directionalLight(255, 255, 255, 0.25, 0.5, -1); // Strong directional light to simulate sunlight
+
+        // Use a single directional light
+        p.ambientLight(500); // Add ambient light to evenly illuminate the globe
+        // p.pointLight(255, 255, 255, 0, 0, 1000);
+
+        p.specularMaterial(50); // Specular material to give the globe a natural shine
 
         p.translate(0, 0, 0);
 
@@ -75,7 +78,7 @@ const Interactive3D = () => {
         if (globe) {
           p.texture(globe);
         }
-        p.sphere(200);
+        p.sphere(200); // Draw the globe
       };
     }, sketchRef.current);
 
