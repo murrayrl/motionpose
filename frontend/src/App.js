@@ -10,7 +10,7 @@ function App() {
     <div className="App">
       <Sidebar setSelectedVisual={setSelectedVisual} />
       <div className="main-view">
-        <Visuals visual={selectedVisual} />
+        <Visuals visual={selectedVisual} setSelectedVisual={setSelectedVisual} />
       </div>
     </div>
   );
