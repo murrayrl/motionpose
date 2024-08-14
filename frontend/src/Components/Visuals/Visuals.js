@@ -21,27 +21,42 @@ const Visuals = ({ visual, setSelectedVisual }) => {
   const [currentVisualIndex, setCurrentVisualIndex] = useState(visualsList.indexOf(visual));
 
   useEffect(() => {
+    // Get the visual from local storage if it exists
+    const storedVisual = localStorage.getItem('currentVisual');
+    if (storedVisual && visualsList.includes(storedVisual)) {
+      setCurrentVisualIndex(visualsList.indexOf(storedVisual));
+      setSelectedVisual(storedVisual);
+    }
+  }, [setSelectedVisual]);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentVisualIndex((prevIndex) => (prevIndex + 1) % visualsList.length);
     }, 60000); // 60000 milliseconds = 1 minute
 
-    // Clear the interval on component unmount
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    setSelectedVisual(visualsList[currentVisualIndex]);
-  }, [currentVisualIndex, setSelectedVisual]);
+    const currentVisual = visualsList[currentVisualIndex];
+    if (currentVisual !== visual) {
+      setSelectedVisual(currentVisual);
+      localStorage.setItem('currentVisual', currentVisual);
+      window.location.reload(); // Reload the browser when the visual changes
+    }
+  }, [currentVisualIndex, visual, setSelectedVisual]);
+
+  const currentVisual = visualsList[currentVisualIndex];
 
   return (
     <div className="visuals">
-      {visual === 'basic' && <Basic />}
-      {visual === 'ripple' && <Ripple />}
-      {visual === '3d' && <Interactive3D />}
-      {visual === 'cherry-blossom' && <CherryBlossomVisual />}
-      {visual === 'droplets' && <Droplets />}
-      {visual === 'bubbles' && <Bubbles />}
-      {visual === 'terrain' && <Terrain />}
+      {currentVisual === 'basic' && <Basic />}
+      {currentVisual === 'ripple' && <Ripple />}
+      {currentVisual === '3d' && <Interactive3D />}
+      {currentVisual === 'cherry-blossom' && <CherryBlossomVisual />}
+      {currentVisual === 'droplets' && <Droplets />}
+      {currentVisual === 'bubbles' && <Bubbles />}
+      {currentVisual === 'terrain' && <Terrain />}
     </div>
   );
 };
