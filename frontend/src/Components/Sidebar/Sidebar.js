@@ -12,7 +12,7 @@ const Sidebar = ({ setSelectedVisual, selectedVisual }) => {
     { name: 'Basic', value: 'basic' },
     { name: 'Ripple', value: 'ripple' },
     { name: '3D', value: '3d' },
-    { name: 'Cherry Blossom', value: 'cherry-blossom' },
+    // { name: 'Cherry Blossom', value: 'cherry-blossom' },
     { name: 'Droplets', value: 'droplets' },
     { name: 'Bubbles', value: 'bubbles' },
     { name: 'Terrain', value: 'terrain' },

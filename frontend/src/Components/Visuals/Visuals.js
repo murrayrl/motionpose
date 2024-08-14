@@ -11,7 +11,7 @@ const visualsList = [
   'basic',
   'ripple',
   '3d',
-  'cherry-blossom',
+  // 'cherry-blossom',
   'droplets',
   'bubbles',
   'terrain',
@@ -53,7 +53,7 @@ const Visuals = ({ visual, setSelectedVisual }) => {
       {currentVisual === 'basic' && <Basic />}
       {currentVisual === 'ripple' && <Ripple />}
       {currentVisual === '3d' && <Interactive3D />}
-      {currentVisual === 'cherry-blossom' && <CherryBlossomVisual />}
+      {/* {currentVisual === 'cherry-blossom' && <CherryBlossomVisual />} */}
       {currentVisual === 'droplets' && <Droplets />}
       {currentVisual === 'bubbles' && <Bubbles />}
       {currentVisual === 'terrain' && <Terrain />}
