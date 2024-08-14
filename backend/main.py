@@ -13,11 +13,25 @@ from torch.cuda.amp import autocast, GradScaler
 # if not torch.cuda.is_available():
 #     raise SystemError("CUDA is not available. Please check your installation.")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():  # Metal Performance Shaders for Apple Silicon
+    device = torch.device('mps')
+elif torch.has_mps:  # For AMD GPUs using ROCm 
+    device = torch.device('mps')
+elif torch_directml.is_available():
+    device = torch_directml.device()
+else:
+    device = torch.device('cpu')
+    
+cv2.ocl.setUseOpenCL(True)
+if cv2.ocl.haveOpenCL():
+    print("OpenCL is enabled for OpenCV.")
+    
 print(f"Using device: {device}")
 
 model = YOLO('yolov8s-pose.pt').to(device)
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 buffer = []
 buffer_size = 10  # Adjust buffer size as needed
 last_processed_time = time.time()
