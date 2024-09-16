@@ -6,6 +6,8 @@ import CherryBlossomVisual from './CherryBlossomVisual';
 import Droplets from './Droplets';
 import Bubbles from './Bubbles';
 import Terrain from './Terrain';
+import Stick from './Stick';
+import People from './People';
 
 const visualsList = [
   'basic',
@@ -15,6 +17,8 @@ const visualsList = [
   'droplets',
   'bubbles',
   'terrain',
+  'stick',
+  'people'
 ];
 
 const Visuals = ({ visual, setSelectedVisual }) => {
@@ -29,22 +33,29 @@ const Visuals = ({ visual, setSelectedVisual }) => {
     }
   }, [setSelectedVisual]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentVisualIndex((prevIndex) => (prevIndex + 1) % visualsList.length);
-    }, 60000); // 60000 milliseconds = 1 minute
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setCurrentVisualIndex((prevIndex) => (prevIndex + 1) % visualsList.length);
+  //   }, 60000); // 60000 milliseconds = 1 minute
 
-    return () => clearInterval(timer);
-  }, []);
+  //   return () => clearInterval(timer);
+  // }, []);
 
   useEffect(() => {
     const currentVisual = visualsList[currentVisualIndex];
     if (currentVisual !== visual) {
-      setSelectedVisual(currentVisual);
-      localStorage.setItem('currentVisual', currentVisual);
+      setSelectedVisual(visual);
+      localStorage.setItem('currentVisual', visual);
       window.location.reload(); // Reload the browser when the visual changes
     }
-  }, [currentVisualIndex, visual, setSelectedVisual]);
+
+    // const currentVisual = visualsList[currentVisualIndex];
+    // if (currentVisual !== visual) {
+    //   setSelectedVisual(currentVisual);
+    //   localStorage.setItem('currentVisual', currentVisual);
+    //   window.location.reload(); // Reload the browser when the visual changes
+    // }
+  }, [visual]);
 
   const currentVisual = visualsList[currentVisualIndex];
 
@@ -57,6 +68,8 @@ const Visuals = ({ visual, setSelectedVisual }) => {
       {currentVisual === 'droplets' && <Droplets />}
       {currentVisual === 'bubbles' && <Bubbles />}
       {currentVisual === 'terrain' && <Terrain />}
+      {currentVisual === 'stick' && <Stick />}
+      {currentVisual === 'people' && <People />}
     </div>
   );
 };

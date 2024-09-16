@@ -20,7 +20,6 @@ const Basic = () => {
         };
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data);
-          
 
           // Check if keypoints property exists and is an array
           if (data && Array.isArray(data)) {
