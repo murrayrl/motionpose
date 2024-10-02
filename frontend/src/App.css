@@ -26,3 +26,14 @@
   align-items: center;
   border: 1px solid #000;
 }
+
+.sidebar ul li {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.sidebar ul li.active {
+  background-color: lightgray;
+  font-weight: bold;
+}
+
