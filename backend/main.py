@@ -10,12 +10,11 @@ import matplotlib.animation as animation
 import torch
 from torch.cuda.amp import autocast, GradScaler
 
-# if not torch.cuda.is_available():
-#     raise SystemError("CUDA is not available. Please check your installation.")
-
+# get device used = cpu
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
+#set up yolo ML model
 model = YOLO('yolov8s-pose.pt').to(device)
 cap = cv2.VideoCapture(0)
 buffer = []
@@ -43,6 +42,7 @@ skeleton = [
 motion_data = {name: [] for name in keypoint_names}
 frame_data = []  # To store the frames for video
 
+# sends keypoint coordinates to frontend WS server
 async def send_coordinates(data):
     uri = "ws://localhost:8765"
     try:
@@ -53,38 +53,126 @@ async def send_coordinates(data):
         print("data: ", data)
         print("Failed to send data:", e)
 
-def draw_keypoints(frame, keypoints):
-    for person_keypoints in keypoints:
-        kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
-        if kpts.size == 0:
+#draws keypoints on frames, draws skeleton, id, and color
+def draw_keypoints(frame, person_tracker, current_keypoints):
+    # Check if person_tracker is a dictionary
+    if not isinstance(person_tracker, dict):
+        raise TypeError("Expected person_tracker to be a dictionary")
+
+    # Draw keypoints for currently detected keypoints
+    for person_id, data in person_tracker.items():
+        # Get the corresponding keypoints from current_keypoints using the person_id
+        keypoints = current_keypoints[person_id - 1] if person_id - 1 < len(current_keypoints) else None
+
+        # Skip if keypoints are not valid or empty
+        if keypoints is None or len(keypoints) == 0:
             continue
-        for i, (x, y, conf) in enumerate(kpts):
+        
+        color = data.get('color', (0, 0, 0))  # Get the assigned color for the person
+
+        # Draw keypoints for the current person's keypoints
+        for (x, y, conf) in keypoints:
             if conf > 0.5:  # Only consider confident keypoints
-                cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
-                cv2.putText(frame, keypoint_names[i], (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                # Store the keypoint motion data
-                motion_data[keypoint_names[i]].append((x, y))
-        # Draw skeleton
-        for connection in skeleton:
-            if kpts[connection[0], 2] > 0.5 and kpts[connection[1], 2] > 0.5:
-                cv2.line(frame, (int(kpts[connection[0], 0]), int(kpts[connection[0], 1])),
-                         (int(kpts[connection[1], 0]), int(kpts[connection[1], 1])), (255, 0, 0), 2)
+                cv2.circle(frame, (int(x), int(y)), 3, color, -1)
+
+        # Draw skeleton lines, ensuring keypoints are valid
+        if keypoints.shape[0] > max(max(connection) for connection in skeleton):
+            for connection in skeleton:
+                if keypoints[connection[0], 2] > 0.5 and keypoints[connection[1], 2] > 0.5:
+                    cv2.line(
+                        frame,
+                        (int(keypoints[connection[0], 0]), int(keypoints[connection[0], 1])),
+                        (int(keypoints[connection[1], 0]), int(keypoints[connection[1], 1])),
+                        color,
+                        2
+                    )
+
+        # Display the person ID near the first keypoint (e.g., the nose), if available
+        if keypoints.shape[0] > 0 and keypoints[0, 2] > 0.5:
+            # Get the person ID from the person tracker
+            person_id = data.get('id', 0)
+            cv2.putText(frame, f"ID: {person_id}", (int(keypoints[0, 0]), int(keypoints[0, 1] - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
     return frame
 
-def calculate_service_delay(D_prev_q, D_prev_s, T_a, D_curr_s):
-    if (D_prev_q + D_prev_s - T_a > 0):
-        return D_prev_q + D_prev_s + T_a + D_curr_s
-    else:
-        return D_curr_s
+
+# get colors from a palette, can add more to reduce duplicate colors
+color_palette = [
+    (255, 0, 0), (0, 255, 0), (0, 0, 255),
+    (255, 255, 0), (255, 0, 255), (0, 255, 255)
+]
+person_tracker = {}  # Dictionary to store keypoints, color, and id
+next_person_id = 1  # Counter for assigning new IDs
+
+# calculates mean distance between all keypoints from. compares last keypoints from when someone enters/leaves the frame to current
+# keypoints, meant to increase accuracy and consistent tracking when someone enters or leaves the frame
+def calculate_keypoint_similarity(kp1, kp2):
+    """Calculate similarity between two sets of keypoints using Euclidean distance."""
+    if len(kp1) != len(kp2):
+        return float('inf')  # Return a large distance if keypoints length doesn't match
+
+    distances = [
+        np.linalg.norm(np.array(kp1[i][:2]) - np.array(kp2[i][:2]))
+        for i in range(len(kp1))
+        if kp1[i][2] > 0.5 and kp2[i][2] > 0.5  # Only consider confident keypoints
+    ]
+
+    return np.mean(distances) if distances else float('inf')
+
+# updates person tracker
+def update_person_tracker(keypoints_data, current_count, previous_count):
+    global person_tracker
+    global next_person_id
+    #determine if person has left or entered frame
+    difference = current_count - previous_count
+
+    # If there are new people in the frame, add them
+    if difference > 0:
+        print("Person joined")
+        for i in range(previous_count, current_count):
+            current_kpts = keypoints_data[i].cpu().numpy()
+            best_match_id = None
+            lowest_distance = 45.0 #arbitrary minimum distance that keypoint comparison needs to meet
+
+            # Compare with existing keypoints in person_tracker
+            for person_id, data in person_tracker.items():
+                existing_kpts = data['keypoints']
+                distance = calculate_keypoint_similarity(existing_kpts, current_kpts)
+
+                if distance < lowest_distance:
+                    lowest_distance = distance
+                    best_match_id = person_id
+
+            # If a good match is found, use the existing ID; otherwise, assign a new one
+            if best_match_id is not None and lowest_distance < 50:  # Threshold distance
+                person_tracker[best_match_id]['keypoints'] = current_kpts
+            else:
+                color = color_palette[i % len(color_palette)]
+                person_tracker[next_person_id] = {
+                    'keypoints': current_kpts,
+                    'color': color,
+                    'id': next_person_id
+                }
+                next_person_id += 1
+
+    # If people have left the frame, remove them
+    elif difference < 0:
+        print("Person left")
+        for i in range(current_count, previous_count):
+            if (i + 1) in person_tracker:
+                del person_tracker[i + 1]
+            next_person_id -= 1
+
+    # log the updated tracker state
+    print("Updated person tracker:", person_tracker)
+
 
 async def main():
     global last_processed_time
-    D_prev_q = 0
-    D_prev_s = 0
-    T_a = frame_interval
-
-    scaler = GradScaler()
-
+    global person_tracker
+    prev_num_people = 0 #initialize the number of people in the frame
+    
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -115,10 +203,27 @@ async def main():
                 results = model(frame_to_process)
 
             if results:
+                keypoint_count = {name: 0 for name in keypoint_names}
                 for result in results:
                     keypoints = result.keypoints  # Keypoints outputs
                     # Check if keypoints are detected
                     if keypoints is not None and len(keypoints.data) > 0:
+                        for person_keypoints in keypoints.data:
+                            kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+                            for idx, (x, y, conf) in enumerate(kpts):
+                                if conf > 0.5:  # Check if keypoint is confident
+                                    keypoint_name = keypoint_names[idx]
+                                    keypoint_count[keypoint_name] += 1
+
+                        # Determine the number of people as the max count of any keypoint
+                        num_people = max(keypoint_count.values(), default=0)
+                        print("number of people in frame: ", num_people)
+                        #update tracker if person leaves or enters frame
+                        if num_people != prev_num_people:
+                            update_person_tracker(keypoints.data, num_people, prev_num_people)
+                            print("tracker updated")
+                            prev_num_people = num_people
+                            
                         for i, person_keypoints in enumerate(keypoints.data):
                             kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
                             person_data = {'person': i+1, 'keypoints': []}
@@ -135,7 +240,7 @@ async def main():
                                     })
                             coordinates_data.append(person_data)
                         # Draw keypoints on the frame
-                        frame = draw_keypoints(frame_to_process_resized, keypoints.data)
+                        frame = draw_keypoints(frame_to_process_resized, person_tracker, keypoints.data)
                         
                         # Ensure the frame has the correct format for imshow
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -151,76 +256,14 @@ async def main():
                     
                     if coordinates_data:
                         await send_coordinates(coordinates_data)
-                
-
-            end_time = time.time()
-            D_curr_s = end_time - start_time
-            service_delay = calculate_service_delay(D_prev_q, D_prev_s, T_a, D_curr_s)
-            D_prev_q = D_curr_s
-            D_prev_s = service_delay
-
-            print(f"Service Delay: {service_delay:.4f} seconds")
+                        
             last_processed_time = current_time
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
-
-def plot_motion():
-    plt.figure(figsize=(12, 8))
-    for keypoint, positions in motion_data.items():
-        if positions:  # Only plot if there are positions recorded
-            x_coords, y_coords = zip(*positions)
-            plt.plot(x_coords, y_coords, label=keypoint)
-
-    plt.title("Motion of Keypoints")
-    plt.xlabel("X-coordinate")
-    plt.ylabel("Y-coordinate")
-    plt.legend()
-    plt.gca().invert_yaxis()  # Invert y-axis to match the image coordinate system
-    plt.savefig("motion_plot.png")
-    plt.show()
-
-def save_motion_data():
-    np.savez("motion_data.npz", **motion_data)
-
-def save_video(frame_data, filename='output.mp4', fps=30):
-    height, width, layers = frame_data[0].shape
-    size = (width, height)
-    out = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
-    for frame in frame_data:
-        out.write(frame)
-    out.release()
-
-def create_animation():
-    fig, ax = plt.subplots(figsize=(12, 8))
-    ax.set_title('Motion of Keypoints')
-    ax.set_xlim([0, 1920])
-    ax.set_ylim([0, 1080])
-    ax.invert_yaxis()  # Invert y-axis to match the image coordinate system
-
-    lines = {keypoint: ax.plot([], [], marker='o', linestyle='-', label=keypoint)[0] for keypoint in keypoint_names}
-    ax.legend()
-
-    def init():
-        for line in lines.values():
-            line.set_data([], [])
-        return lines.values()
-
-    def update(frame_number):
-        for keypoint, line in lines.items():
-            if len(motion_data[keypoint]) > frame_number:
-                x, y = zip(*motion_data[keypoint][:frame_number + 1])
-                line.set_data(x, y)
-        return lines.values()
-
-    ani = animation.FuncAnimation(fig, update, frames=len(frame_data), init_func=init, blit=True, interval=1000/30)
-    ani.save('motion_animation.mp4', writer='ffmpeg', fps=30)
-    plt.show()
-
+    
+#run main loop of the program
 if __name__ == "__main__":
     asyncio.run(main())
-save_motion_data()
-save_video(frame_data)
-plot_motion()

@@ -16,6 +16,7 @@ const Sidebar = ({ setSelectedVisual, selectedVisual }) => {
     { name: 'Droplets', value: 'droplets' },
     { name: 'Bubbles', value: 'bubbles' },
     { name: 'Terrain', value: 'terrain' },
+    { name: 'New', value: 'new' },
   ];
 
   return (

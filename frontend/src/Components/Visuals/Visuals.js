@@ -6,6 +6,7 @@ import CherryBlossomVisual from './CherryBlossomVisual';
 import Droplets from './Droplets';
 import Bubbles from './Bubbles';
 import Terrain from './Terrain';
+import New from './New';
 
 const visualsList = [
   'basic',
@@ -15,6 +16,7 @@ const visualsList = [
   'droplets',
   'bubbles',
   'terrain',
+  'new',
 ];
 
 const Visuals = ({ visual, setSelectedVisual }) => {
@@ -32,7 +34,7 @@ const Visuals = ({ visual, setSelectedVisual }) => {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentVisualIndex((prevIndex) => (prevIndex + 1) % visualsList.length);
-    }, 60000); // 60000 milliseconds = 1 minute
+    }, 10000); // 60000 milliseconds = 1 minute -> changed to 10000 = 10s timer
 
     return () => clearInterval(timer);
   }, []);
@@ -57,6 +59,7 @@ const Visuals = ({ visual, setSelectedVisual }) => {
       {currentVisual === 'droplets' && <Droplets />}
       {currentVisual === 'bubbles' && <Bubbles />}
       {currentVisual === 'terrain' && <Terrain />}
+      {currentVisual === 'new' && <New />}
     </div>
   );
 };
