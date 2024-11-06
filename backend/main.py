@@ -15,7 +15,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 #set up yolo ML model
-model = YOLO('yolov8s-pose.pt').to(device)
+model = YOLO('yolov11-pose.pt').to(device)
 cap = cv2.VideoCapture(0)
 buffer = []
 buffer_size = 10  # Adjust buffer size as needed
