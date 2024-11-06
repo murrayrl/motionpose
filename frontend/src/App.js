@@ -134,8 +134,7 @@ export default function App() {
                     borderRadius: 300,
                 }}
             >
-                <p>hi</p>
-            </Container>
+=            </Container>
         </div>
     );
 }
