@@ -5,19 +5,32 @@ import * as React from "react"; // React library
 import { useState, useEffect } from "react"; // React hooks for state management and side effects
 import ToggleButton from "@mui/material/ToggleButton"; // MUI ToggleButton component
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup"; // MUI ToggleButtonGroup for grouping toggle buttons
+import Stack from '@mui/material/Stack'; // MUI Stack component
+
 
 // Main App component
 export default function App() {
     // Define state variables with default values
     const [coordinate, setCoordinate] = useState(["x", "y", "z"]); // Track selected coordinates (e.g., x, y, z)
     const [bodyPart, setBodyPart] = useState([
-        "shoulder",
-        "hip",
-        "hand",
-        "foot",
-        "head",
+        "nose",
+        "left eye",
+        "right eye",
+        "left ear",
+        "right ear",
+        "left shoulder",
+        "right shoulder",
+        "left elbow",
+        "right elbow",
+        "left wrist",
+        "right wrist",
+        "left hip",
+        "right hip",
+        "left knee",
+        "right knee",
+        "left ankle",
+        "right ankle"
     ]); // Track selected body parts
-    const [direction, setDirection] = React.useState(["left", "right"]); // Track selected direction (left or right)
     const [ws, setWs] = useState(null); // WebSocket instance
 
     // Establish WebSocket connection when component mounts
@@ -55,19 +68,13 @@ export default function App() {
     // Handler for coordinate selection changes
     const handleCoordinate = (event, newCoordinate) => {
         setCoordinate(newCoordinate); // Update coordinate state
-        sendToWebSocket({ coordinate: newCoordinate, bodyPart, direction }); // Send updated state to server
+        sendToWebSocket({ coordinate: newCoordinate, bodyPart}); // Send updated state to server
     };
 
     // Handler for body part selection changes
     const handleBodyPart = (event, newBodyPart) => {
         setBodyPart(newBodyPart); // Update body part state
-        sendToWebSocket({ coordinate, bodyPart: newBodyPart, direction }); // Send updated state to server
-    };
-
-    // Handler for direction selection changes
-    const handleDirection = (event, newDirection) => {
-        setDirection(newDirection); // Update direction state
-        sendToWebSocket({ coordinate, bodyPart, direction: newDirection }); // Send updated state to server
+        sendToWebSocket({ coordinate, bodyPart: newBodyPart}); // Send updated state to server
     };
 
     // Helper function to log current selected values to console
@@ -75,7 +82,6 @@ export default function App() {
         console.log("Current Values:");
         console.log("Coordinates: ", coord.join(", ")); // Join array to display as comma-separated string
         console.log("Body Part: ", body.join(", "));
-        console.log("Direction: ", dir.join(", "));
     };
 
     // Component return: JSX layout for the UI
@@ -100,22 +106,42 @@ export default function App() {
                 onChange={handleBodyPart} // Call handler on change
                 aria-label="body part" // Accessibility label
             >
-                <ToggleButton value="shoulder" aria-label=""> Shoulder </ToggleButton>
-                <ToggleButton value="hip" aria-label=""> Hip </ToggleButton>
-                <ToggleButton value="hand" aria-label=""> Hand </ToggleButton>
-                <ToggleButton value="foot" aria-label=""> Foot </ToggleButton>
-                <ToggleButton value="head" aria-label=""> Head </ToggleButton>
-            </ToggleButtonGroup>
-
-            {/* Direction selection toggle buttons */}
-            <ToggleButtonGroup
-                className="toggleButtonGroup"
-                value={direction} // Bind to direction state
-                onChange={handleDirection} // Call handler on change
-                aria-label="direction" // Accessibility label
-            >
-                <ToggleButton value="left" aria-label="left aligned"> Left </ToggleButton>
-                <ToggleButton value="right" aria-label="centered"> Right </ToggleButton>
+                <Stack spacing = {2}>
+                    <ToggleButton value="nose" aria-label=""> Nose </ToggleButton>
+                    <div>
+                        <ToggleButton value="left eye" aria-label=""> Left Eye </ToggleButton>
+                        <ToggleButton value="right eye" aria-label=""> Right Eye </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left ear" aria-label=""> Left Ear </ToggleButton>
+                        <ToggleButton value="right ear" aria-label=""> Right Ear </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left shoulder" aria-label=""> Left Shoulder </ToggleButton>
+                        <ToggleButton value="right shoulder" aria-label=""> Right Shoulder </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left elbow" aria-label=""> Left Elbow </ToggleButton>
+                        <ToggleButton value="right elbow" aria-label=""> Right Elbow </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left wrist" aria-label=""> Left Wrist </ToggleButton>
+                        <ToggleButton value="right wrist" aria-label=""> Right Wrist </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left hip" aria-label=""> Left Hip </ToggleButton>
+                        <ToggleButton value="right hip" aria-label=""> Right Hip </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left knee" aria-label=""> Left Knee </ToggleButton>
+                        <ToggleButton value="right knee" aria-label=""> Right Knee </ToggleButton>
+                    </div>
+                    <div>
+                        <ToggleButton value="left ankle" aria-label=""> Left Ankle </ToggleButton>
+                        <ToggleButton value="right ankle" aria-label=""> Right Ankle </ToggleButton>
+                    </div>
+                </Stack>
+                
             </ToggleButtonGroup>
         </div>
     );

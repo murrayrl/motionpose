@@ -16,7 +16,6 @@ async def handler(websocket, path):
             print("Received data:")
             print("  Coordinates:", data.get("coordinate"))  # Access the 'coordinate' field from the data
             print("  Body Part:", data.get("bodyPart"))      # Access the 'bodyPart' field
-            print("  Direction:", data.get("direction"))     # Access the 'direction' field
             print("\n")  # Print a newline for readability between messages
     except websockets.ConnectionClosed:
         # Handle the case where the client disconnects
