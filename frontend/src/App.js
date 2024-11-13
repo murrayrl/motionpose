@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"; // React hooks for state management
 import ToggleButton from "@mui/material/ToggleButton"; // MUI ToggleButton component
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup"; // MUI ToggleButtonGroup for grouping toggle buttons
 import Stack from '@mui/material/Stack'; // MUI Stack component
-
+import Box from '@mui/material/Box'
 
 // Main App component
 export default function App() {
@@ -87,7 +87,52 @@ export default function App() {
     // Component return: JSX layout for the UI
     return (
         <div className="component">
-            {/* Coordinate selection toggle buttons */}
+            
+
+            {/* Body part selection toggle buttons */}
+            <ToggleButtonGroup
+                className="toggleButtonGroup"
+                value={bodyPart} // Bind to bodyPart state
+                onChange={handleBodyPart} // Call handler on change
+                aria-label="body part" // Accessibility label
+            >
+                <Stack spacing = {2} sx={{width: '30vw', display: 'flex', alignItems: 'center'}}>
+                    <Box sx={{width: '100%', display: 'flex', justifyContent: 'center'}}>
+                        <ToggleButton value="nose" aria-label="" sx ={{width: 'fit-content'}}> Nose </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left eye" aria-label=""> Left Eye </ToggleButton>
+                        <ToggleButton value="right eye" aria-label=""> Right Eye </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left ear" aria-label=""> Left Ear </ToggleButton>
+                        <ToggleButton value="right ear" aria-label=""> Right Ear </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left shoulder" aria-label=""> Left Shoulder </ToggleButton>
+                        <ToggleButton value="right shoulder" aria-label=""> Right Shoulder </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left elbow" aria-label=""> Left Elbow </ToggleButton>
+                        <ToggleButton value="right elbow" aria-label=""> Right Elbow </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left wrist" aria-label=""> Left Wrist </ToggleButton>
+                        <ToggleButton value="right wrist" aria-label=""> Right Wrist </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left hip" aria-label=""> Left Hip </ToggleButton>
+                        <ToggleButton value="right hip" aria-label=""> Right Hip </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left knee" aria-label=""> Left Knee </ToggleButton>
+                        <ToggleButton value="right knee" aria-label=""> Right Knee </ToggleButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2}}>
+                        <ToggleButton value="left ankle" aria-label=""> Left Ankle </ToggleButton>
+                        <ToggleButton value="right ankle" aria-label=""> Right Ankle </ToggleButton>
+                    </Box>
+                    {/* Coordinate selection toggle buttons */}
             <ToggleButtonGroup
                 className="toggleButtonGroup"
                 value={coordinate} // Bind to coordinate state
@@ -98,48 +143,6 @@ export default function App() {
                 <ToggleButton value="y" aria-label="y"> Y </ToggleButton>
                 <ToggleButton value="z" aria-label="z"> Z </ToggleButton>
             </ToggleButtonGroup>
-
-            {/* Body part selection toggle buttons */}
-            <ToggleButtonGroup
-                className="toggleButtonGroup"
-                value={bodyPart} // Bind to bodyPart state
-                onChange={handleBodyPart} // Call handler on change
-                aria-label="body part" // Accessibility label
-            >
-                <Stack spacing = {2}>
-                    <ToggleButton value="nose" aria-label=""> Nose </ToggleButton>
-                    <div>
-                        <ToggleButton value="left eye" aria-label=""> Left Eye </ToggleButton>
-                        <ToggleButton value="right eye" aria-label=""> Right Eye </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left ear" aria-label=""> Left Ear </ToggleButton>
-                        <ToggleButton value="right ear" aria-label=""> Right Ear </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left shoulder" aria-label=""> Left Shoulder </ToggleButton>
-                        <ToggleButton value="right shoulder" aria-label=""> Right Shoulder </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left elbow" aria-label=""> Left Elbow </ToggleButton>
-                        <ToggleButton value="right elbow" aria-label=""> Right Elbow </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left wrist" aria-label=""> Left Wrist </ToggleButton>
-                        <ToggleButton value="right wrist" aria-label=""> Right Wrist </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left hip" aria-label=""> Left Hip </ToggleButton>
-                        <ToggleButton value="right hip" aria-label=""> Right Hip </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left knee" aria-label=""> Left Knee </ToggleButton>
-                        <ToggleButton value="right knee" aria-label=""> Right Knee </ToggleButton>
-                    </div>
-                    <div>
-                        <ToggleButton value="left ankle" aria-label=""> Left Ankle </ToggleButton>
-                        <ToggleButton value="right ankle" aria-label=""> Right Ankle </ToggleButton>
-                    </div>
                 </Stack>
                 
             </ToggleButtonGroup>
