@@ -36,7 +36,7 @@ def render_sk(left_display, img_scale, obj, color, BODY_BONES):
             text_position = (int(cv_kp[0]) + 5, int(cv_kp[1]) - 5)  # Position the text near the circle
             
             # Add text next to the circle to contain keypoint name
-            cv2.putText(left_display,  keypoint_name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            #cv2.putText(left_display,  keypoint_name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
 
 keypoint_names = {
@@ -71,4 +71,4 @@ def render_2D(left_display, img_scale, objects, is_tracking_on, body_format):
                 elif body_format == sl.BODY_FORMAT.BODY_38:
                     render_sk(left_display, img_scale, obj, color, sl.BODY_38_BONES) 
 
-    cv2.addWeighted(left_display, 0.9, overlay, 0.1, 0.0, left_display)
+    #cv2.addWeighted(left_display, 0.9, overlay, 0.1, 0.0, left_display)

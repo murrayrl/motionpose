@@ -1,27 +1,4 @@
-########################################################################
-#
-# Copyright (c) 2022, STEREOLABS.
-#
-# All rights reserved.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-########################################################################
 
-"""
-   This sample shows how to detect a human bodies and draw their 
-   modelised skeleton in an OpenGL window
-"""
 import cv2
 import sys
 import pyzed.sl as sl
@@ -30,8 +7,6 @@ import time
 import cv_viewer.tracking_viewer as cv_viewer
 import numpy as np
 import argparse
-
-
 
 
 def parse_args(init):
@@ -119,8 +94,10 @@ def main():
                  , display_resolution.height / camera_info.camera_configuration.resolution.height]
 
     # Create OpenGL viewer
+    
     viewer = gl.GLViewer()
     viewer.init(camera_info.camera_configuration.calibration_parameters.left_cam, body_param.enable_tracking,body_param.body_format)
+
     # Create ZED objects filled in the main loop
     bodies = sl.Bodies()
     image = sl.Mat()
@@ -136,9 +113,10 @@ def main():
             # Update GL view
             viewer.update_view(image, bodies) 
             # Update OCV view
-            image_left_ocv = image.get_data()
-            cv_viewer.render_2D(image_left_ocv,image_scale, bodies.body_list, body_param.enable_tracking, body_param.body_format)
-            cv2.imshow("ZED | 2D View", image_left_ocv)
+            image_left_ocv = image.get_data() # This line collects the data from the camera to be displayed on the cv_viewer
+
+            cv_viewer.render_2D(image_left_ocv,image_scale, bodies.body_list, body_param.enable_tracking, body_param.body_format) # This overalys a render onto the display
+            cv2.imshow("ZED | 2D View", image_left_ocv) # this only displays
             key = cv2.waitKey(key_wait)
             if key == 113: # for 'q' key
                 print("Exiting...")
