@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import torch
 from torch.cuda.amp import autocast, GradScaler
+from facenet_pytorch import MTCNN, InceptionResnetV1 # MTCNN - detection, Resnet - recognition
 
 # get device used = cpu
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -21,6 +22,11 @@ buffer = []
 buffer_size = 10  # Adjust buffer size as needed
 last_processed_time = time.time()
 frame_interval = 1 / 30  # Target 30 FPS
+
+# Initialize face detection and recognition models
+mtcnn = MTCNN(keep_all=True) #detection, returns bounding boxes of faces
+resnet = InceptionResnetV1(pretrained='vggface2').eval().to(device) #recognition model trained on vggface2 dataset
+# .eval() means the model is in evaluation mode and weights won't change
 
 keypoint_names = [
     'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
@@ -96,77 +102,115 @@ def draw_keypoints(frame, person_tracker, current_keypoints):
 
     return frame
 
-
 # get colors from a palette, can add more to reduce duplicate colors
 color_palette = [
     (255, 0, 0), (0, 255, 0), (0, 0, 255),
     (255, 255, 0), (255, 0, 255), (0, 255, 255)
 ]
-person_tracker = {}  # Dictionary to store keypoints, color, and id
+person_tracker = {}  # Dictionary to store keypoints, color, and id, face embeddings
 next_person_id = 1  # Counter for assigning new IDs
+SIMILARITY_THRESHOLD = 0.6  # determines how similar an embedding has to be to be considered the same id
 
-# calculates mean distance between all keypoints from. compares last keypoints from when someone enters/leaves the frame to current
-# keypoints, meant to increase accuracy and consistent tracking when someone enters or leaves the frame
-def calculate_keypoint_similarity(kp1, kp2):
-    """Calculate similarity between two sets of keypoints using Euclidean distance."""
-    if len(kp1) != len(kp2):
-        return float('inf')  # Return a large distance if keypoints length doesn't match
-
-    distances = [
-        np.linalg.norm(np.array(kp1[i][:2]) - np.array(kp2[i][:2]))
-        for i in range(len(kp1))
-        if kp1[i][2] > 0.5 and kp2[i][2] > 0.5  # Only consider confident keypoints
-    ]
-
-    return np.mean(distances) if distances else float('inf')
+#measures similarity of face embeddings, similarity is between -1 (least similar) and 1 (most similar)
+def cosine_similarity(embedding1, embedding2):
+   """Calculate cosine similarity between two embeddings."""
+   dot_product = np.dot(embedding1, embedding2.T)
+   norm1 = np.linalg.norm(embedding1)
+   norm2 = np.linalg.norm(embedding2)
+   return dot_product / (norm1 * norm2)
 
 # updates person tracker
-def update_person_tracker(keypoints_data, current_count, previous_count):
+def update_person_tracker(keypoints_data, current faces):
     global person_tracker
     global next_person_id
-    #determine if person has left or entered frame
-    difference = current_count - previous_count
+    
+    return person_tracker
 
-    # If there are new people in the frame, add them
-    if difference > 0:
-        print("Person joined")
-        for i in range(previous_count, current_count):
-            current_kpts = keypoints_data[i].cpu().numpy()
-            best_match_id = None
-            lowest_distance = 45.0 #arbitrary minimum distance that keypoint comparison needs to meet
+coordinates_data = []
+def get_keypoints(results):
+    
+    if results:
+        keypoint_count = {name: 0 for name in keypoint_names}
+        for result in results:
+            keypoints = result.keypoints  # Keypoints outputs
+            # Check if keypoints are detected
+            if keypoints is not None and len(keypoints.data) > 0:
+                for person_keypoints in keypoints.data:
+                    kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+                    for idx, (x, y, conf) in enumerate(kpts):
+                        if conf > 0.5:  # Check if keypoint is confident
+                            keypoint_name = keypoint_names[idx]
+                            keypoint_count[keypoint_name] += 1
 
-            # Compare with existing keypoints in person_tracker
-            for person_id, data in person_tracker.items():
-                existing_kpts = data['keypoints']
-                distance = calculate_keypoint_similarity(existing_kpts, current_kpts)
+                # Determine the number of people as the max count of any keypoint
+                num_people = max(keypoint_count.values(), default=0)
+                print("number of people in frame: ", num_people)
+                #update tracker if person leaves or enters frame
+    
+                for i, person_keypoints in enumerate(keypoints.data):
+                    kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
+                    person_data = {'person': i+1, 'keypoints': []}
+                    #print(f"Person {i+1} Keypoints:")
+                    person_data = {'person': i+1, 'keypoints': []}
+                    for j, (x, y, conf) in enumerate(kpts):
+                        if conf > 0.5:  # Only consider confident keypoints
+                            #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
+                            person_data['keypoints'].append({
+                                'label': keypoint_names[j],
+                                'x': float(x),
+                                'y': float(y),
+                                'confidence': float(conf)
+                            })
+                    coordinates_data.append(person_data)
+    
+    return coordinates_data, keypoints
 
-                if distance < lowest_distance:
-                    lowest_distance = distance
-                    best_match_id = person_id
+def run_face_rec(rgb_frame):
+    faces, confidences = mtcnn.detect(rgb_frame) # detect faces, confidence
+    current_faces = {}
+    if faces is not None: # if faces are detected
+        for box in faces: # draw a box around each face
+            #process faces
+            x1, y1, x2, y2 = [int(b) for b in box] #get box int values
+            h, w, confidences = rgb_frame.shape
+            x1, y1, x2, y2 = max(0, x1), max(0, y1), min(w, x2), min(h, y2) #ensure valid coordinates
 
-            # If a good match is found, use the existing ID; otherwise, assign a new one
-            if best_match_id is not None and lowest_distance < 50:  # Threshold distance
-                person_tracker[best_match_id]['keypoints'] = current_kpts
-            else:
-                color = color_palette[i % len(color_palette)]
-                person_tracker[next_person_id] = {
-                    'keypoints': current_kpts,
-                    'color': color,
-                    'id': next_person_id
-                }
+            face = rgb_frame[y1:y2, x1:x2]
+            if face.size == 0: # ensure box is valid size
+                continue
+          
+            # get tensor from box of each face
+            face_resized = cv2.resize(face, (160, 160)) # resize face for resnet input
+            face_tensor = torch.from_numpy(face_resized).permute(2, 0, 1).float() / 255.0 # convert face to tensor
+            # permute shape form 160,160,3 to 3,160,160, normalize pixels between 0 and 1
+            face_tensor = face_tensor.unsqueeze(0) # add batch dimension, size is 1,3,160,160, tells resnet there is 1 image
+
+            face_embedding = resnet(face_tensor).detach().numpy().flatten() #output size 1,128 as numpy array
+            #flattened to size (128,)
+            #print(face_embedding)
+            # initialize variables
+          
+            matched_id = None # store ID of best matching face
+            max_similarity = -1 # initialize max similarity
+
+            # match ids to faces already in the frame
+            for person_id, data in current_faces.items():
+                for stored_embedding in data['embeddings']: #loop through embeddings
+                    similarity = cosine_similarity(face_embedding, stored_embedding)
+                    if similarity > SIMILARITY_THRESHOLD and similarity > max_similarity:
+                        matched_id = person_id
+                        max_similarity = similarity
+
+            if matched_id is None:
+                matched_id = next_person_id
+                current_faces[matched_id] = {'embeddings': []}
                 next_person_id += 1
 
-    # If people have left the frame, remove them
-    elif difference < 0:
-        print("Person left")
-        for i in range(current_count, previous_count):
-            if (i + 1) in person_tracker:
-                del person_tracker[i + 1]
-            next_person_id -= 1
+            current_faces[matched_id]['embeddings'].append(face_embedding)
+            if len(current_faces[matched_id]['embeddings']) > 5:
+                current_faces[matched_id]['embeddings'].pop(0)
 
-    # log the updated tracker state
-    print("Updated person tracker:", person_tracker)
-
+    return current_faces
 
 async def main():
     global last_processed_time
@@ -180,9 +224,7 @@ async def main():
 
         current_time = time.time()
         buffer.append((frame, current_time))
-
-        coordinates_data = []
-
+        
         # Drop older frames if buffer exceeds size
         if len(buffer) > buffer_size:
             buffer.pop(0)
@@ -201,61 +243,27 @@ async def main():
 
             with autocast():
                 results = model(frame_to_process)
-
-            if results:
-                keypoint_count = {name: 0 for name in keypoint_names}
-                for result in results:
-                    keypoints = result.keypoints  # Keypoints outputs
-                    # Check if keypoints are detected
-                    if keypoints is not None and len(keypoints.data) > 0:
-                        for person_keypoints in keypoints.data:
-                            kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
-                            for idx, (x, y, conf) in enumerate(kpts):
-                                if conf > 0.5:  # Check if keypoint is confident
-                                    keypoint_name = keypoint_names[idx]
-                                    keypoint_count[keypoint_name] += 1
-
-                        # Determine the number of people as the max count of any keypoint
-                        num_people = max(keypoint_count.values(), default=0)
-                        print("number of people in frame: ", num_people)
-                        #update tracker if person leaves or enters frame
-                        if num_people != prev_num_people:
-                            update_person_tracker(keypoints.data, num_people, prev_num_people)
-                            print("tracker updated")
-                            prev_num_people = num_people
-                            
-                        for i, person_keypoints in enumerate(keypoints.data):
-                            kpts = person_keypoints.cpu().numpy().reshape((-1, 3))
-                            person_data = {'person': i+1, 'keypoints': []}
-                            #print(f"Person {i+1} Keypoints:")
-                            person_data = {'person': i+1, 'keypoints': []}
-                            for j, (x, y, conf) in enumerate(kpts):
-                                if conf > 0.5:  # Only consider confident keypoints
-                                    #print(f"  {keypoint_names[j]}: ({x:.2f}, {y:.2f}), confidence: {conf:.2f}")
-                                    person_data['keypoints'].append({
-                                        'label': keypoint_names[j],
-                                        'x': float(x),
-                                        'y': float(y),
-                                        'confidence': float(conf)
-                                    })
-                            coordinates_data.append(person_data)
-                        # Draw keypoints on the frame
-                        frame = draw_keypoints(frame_to_process_resized, person_tracker, keypoints.data)
+                coordinates_data, keypoints = get_keypoints(results)
+                current_faces = run_face_rec(frame_to_process_rgb)
+                person_tracker = update_person_tracker(keypoints, current_faces)       
+                                     
+                # Draw keypoints on the frame
+                frame = draw_keypoints(frame_to_process_resized, person_tracker, keypoints.data)
                         
-                        # Ensure the frame has the correct format for imshow
-                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Ensure the frame has the correct format for imshow
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-                        # Display the frame
-                        cv2.imshow('YOLO Pose Estimation', frame)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+                # Display the frame
+                cv2.imshow('YOLO Pose Estimation', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
-                        # Save the result frame
-                        frame_data.append(frame)
-                        cv2.imwrite("result.jpg", frame)
+                # Save the result frame
+                frame_data.append(frame)
+                cv2.imwrite("result.jpg", frame)
                     
-                    if coordinates_data:
-                        await send_coordinates(coordinates_data)
+                if coordinates_data:
+                    await send_coordinates(coordinates_data)
                         
             last_processed_time = current_time
         if cv2.waitKey(1) & 0xFF == ord('q'):
