@@ -16,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 #set up yolo ML model
-model = YOLO('yolov11-pose.pt').to(device)
+model = YOLO('yolov8s-pose.pt').to(device)
 cap = cv2.VideoCapture(0)
 buffer = []
 buffer_size = 10  # Adjust buffer size as needed
@@ -99,6 +99,9 @@ def draw_keypoints(frame, person_tracker, current_keypoints):
             person_id = data.get('id', 0)
             cv2.putText(frame, f"ID: {person_id}", (int(keypoints[0, 0]), int(keypoints[0, 1] - 10)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        face_center = data.get('faceCenter', (0,0))
+        kpts_center = data.get('kptsCenter', (0,0))
+        cv2.line(frame, (face_center), (int(kpts_center[0]),int(kpts_center[1])), color, 2)
 
     return frame
 
@@ -110,6 +113,7 @@ color_palette = [
 person_tracker = {}  # Dictionary to store keypoints, color, and id, face embeddings
 next_person_id = 1  # Counter for assigning new IDs
 SIMILARITY_THRESHOLD = 0.6  # determines how similar an embedding has to be to be considered the same id
+current_faces = {}
 
 #measures similarity of face embeddings, similarity is between -1 (least similar) and 1 (most similar)
 def cosine_similarity(embedding1, embedding2):
@@ -120,15 +124,54 @@ def cosine_similarity(embedding1, embedding2):
    return dot_product / (norm1 * norm2)
 
 # updates person tracker
-def update_person_tracker(keypoints_data, current faces):
+def update_person_tracker(keypoints):
     global person_tracker
     global next_person_id
+    global current_faces
+    # Check if keypoints are detected
+    if keypoints is not None and len(keypoints.data) > 0:
+        for person_keypoints in keypoints.data:
+            kpts = person_keypoints.cpu().numpy().reshape((-1,3))
+            x_aggr = 0
+            y_aggr = 0
+            len_for_avg = 0
+            
+            for idx, (x, y, conf) in enumerate(kpts):
+                if conf > 0.5:
+                    len_for_avg += 1
+                    x_aggr += x
+                    y_aggr += y
+            if len_for_avg != 0:
+                x_center_kpts = x_aggr / len_for_avg 
+                y_center_kpts = y_aggr / len_for_avg 
+                kpts_center = (x_center_kpts, y_center_kpts)
+            else:
+                kpts_center = (0,0)
+            max_distance = 640 * 2 / (2**(1/2))
+            match_total_id = None
+            for face_id, data in current_faces.items():
+                face_center = data['center']   
+                distance_kptsCenter_faceCenter = ((face_center[0] - kpts_center[0])**2 + (face_center[1] - kpts_center[1])**2) ** (1/2)
+                if distance_kptsCenter_faceCenter < max_distance:
+                    max_distance = distance_kptsCenter_faceCenter
+                    match_total_id = face_id
+            color = color_palette[match_total_id % len(color_palette)]
+            person_tracker[match_total_id] = {
+                'keypoints': person_keypoints,
+                'color': color,
+                'id': match_total_id,
+                'embeddings': current_faces[match_total_id]['embeddings'],
+                'faceCenter': current_faces[match_total_id]['center'],
+                'kptsCenter': kpts_center
+            }
+            #print(person_tracker)
+                
     
-    return person_tracker
+    
 
-coordinates_data = []
+
 def get_keypoints(results):
-    
+    coordinates_data = []
     if results:
         keypoint_count = {name: 0 for name in keypoint_names}
         for result in results:
@@ -161,20 +204,25 @@ def get_keypoints(results):
                                 'y': float(y),
                                 'confidence': float(conf)
                             })
+                    
                     coordinates_data.append(person_data)
     
     return coordinates_data, keypoints
 
+
 def run_face_rec(rgb_frame):
+    global current_faces
+    global next_person_id
     faces, confidences = mtcnn.detect(rgb_frame) # detect faces, confidence
-    current_faces = {}
     if faces is not None: # if faces are detected
         for box in faces: # draw a box around each face
             #process faces
             x1, y1, x2, y2 = [int(b) for b in box] #get box int values
             h, w, confidences = rgb_frame.shape
             x1, y1, x2, y2 = max(0, x1), max(0, y1), min(w, x2), min(h, y2) #ensure valid coordinates
-
+            # Calculate center of the box
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
             face = rgb_frame[y1:y2, x1:x2]
             if face.size == 0: # ensure box is valid size
                 continue
@@ -189,33 +237,36 @@ def run_face_rec(rgb_frame):
             #flattened to size (128,)
             #print(face_embedding)
             # initialize variables
-          
-            matched_id = None # store ID of best matching face
+            matched_face_id = None # store ID of best matching face
             max_similarity = -1 # initialize max similarity
 
+
             # match ids to faces already in the frame
-            for person_id, data in current_faces.items():
+            for face_id, data in current_faces.items():
                 for stored_embedding in data['embeddings']: #loop through embeddings
                     similarity = cosine_similarity(face_embedding, stored_embedding)
                     if similarity > SIMILARITY_THRESHOLD and similarity > max_similarity:
-                        matched_id = person_id
+                        matched_face_id = face_id
                         max_similarity = similarity
 
-            if matched_id is None:
-                matched_id = next_person_id
-                current_faces[matched_id] = {'embeddings': []}
+            if matched_face_id is None:
+                matched_face_id = next_person_id
+                current_faces[matched_face_id] = {'embeddings': [], 'center': (center_x, center_y)}
                 next_person_id += 1
 
-            current_faces[matched_id]['embeddings'].append(face_embedding)
-            if len(current_faces[matched_id]['embeddings']) > 5:
-                current_faces[matched_id]['embeddings'].pop(0)
+            current_faces[matched_face_id]['embeddings'].append(face_embedding)
+            current_faces[matched_face_id]['center'] = (center_x, center_y)  # Update center coordinates
 
-    return current_faces
+            # delete embedding if there are more than 5 for a face id
+            if len(current_faces[matched_face_id]['embeddings']) > 5:
+                current_faces[matched_face_id]['embeddings'].pop(0)
+            
+
 
 async def main():
     global last_processed_time
     global person_tracker
-    prev_num_people = 0 #initialize the number of people in the frame
+    global coordinates_data
     
     while cap.isOpened():
         ret, frame = cap.read()
@@ -244,8 +295,8 @@ async def main():
             with autocast():
                 results = model(frame_to_process)
                 coordinates_data, keypoints = get_keypoints(results)
-                current_faces = run_face_rec(frame_to_process_rgb)
-                person_tracker = update_person_tracker(keypoints, current_faces)       
+                run_face_rec(frame_to_process_rgb)
+                update_person_tracker(keypoints)       
                                      
                 # Draw keypoints on the frame
                 frame = draw_keypoints(frame_to_process_resized, person_tracker, keypoints.data)
@@ -261,7 +312,8 @@ async def main():
                 # Save the result frame
                 frame_data.append(frame)
                 cv2.imwrite("result.jpg", frame)
-                    
+                
+                #print(coordinates_data)
                 if coordinates_data:
                     await send_coordinates(coordinates_data)
                         
