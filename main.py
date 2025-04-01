@@ -13,6 +13,14 @@ import argparse
 import math
 import random 
 import effects
+import os
+import shutil
+
+dpg.create_context()
+
+
+
+
 
 def main():
     # Initialize ZED camera
@@ -50,91 +58,103 @@ def main():
     # Get ZED camera information
     camera_info = zed.get_camera_information()
     # 2D viewer utilities
-    display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1280), min(camera_info.camera_configuration.resolution.height, 720))
+    display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1920), min(camera_info.camera_configuration.resolution.height, 1080))
     image_scale = [display_resolution.width / camera_info.camera_configuration.resolution.width
                  , display_resolution.height / camera_info.camera_configuration.resolution.height]
 
-
     # Create image objects
     bodies = sl.Bodies()
-    tracked_bodies = {}
-
     image = sl.Mat()
-    key_wait = 10 
-    skeleton_file_data = {}
+
+    #create Queue for music player
+
+
     
+    if not os.path.exists("user_custom_layout.ini"):
+        shutil.copy("custom_layout.ini", "user_custom_layout.ini")
+
     # Initialize Dear PyGUI
-    dpg.create_context()
-    dpg.create_viewport(title="ZED Camera Viewer", width=1920, height=1080)
-    dpg.setup_dearpygui()
+    dpg.configure_app(load_init_file="user_custom_layout.ini", docking=True, docking_space=True) # must be called before create_viewport
+    dpg.create_viewport(title="Motionpose 2i", width=1920, height=1080)
+    
+    ZEDCamera = dpg.generate_uuid()
+    EffectDisplay = dpg.generate_uuid()
 
     # Create texture registry
     with dpg.texture_registry():
         # Empty texture
         dpg.add_raw_texture(
-            width=1280,
-            height=720,
-            default_value=np.zeros((720, 1280, 4), dtype=np.float32),
+            width=1920,
+            height=1080,
+            default_value=np.zeros((1080, 1920, 4), dtype=np.float32),
             format=dpg.mvFormat_Float_rgba,
             tag="camera_texture"
         )
 
     # Create window
-    with dpg.window(label="ZED Camera Feed", width=1280, height=720):
+    with dpg.window(label="ZEDCamera", width=1920, height=1080, tag=ZEDCamera):
         dpg.add_image("camera_texture")
+        """Dynamically update UI elements based on the selected effect."""
+        
 
-    
-    with dpg.window(label="Camera Parameters", width=300):
-        dpg.add_text("Person 1", tag="person1")
-        dpg.add_text("No Position", tag="coordinate1")
+    # Create EffectDisplay window before calling update_ui_for_effect
+    with dpg.window(label="EffectDisplay", width=1920, height=1080, tag=EffectDisplay):
+        with dpg.group(horizontal=True, tag="menu_bar"):
 
-        dpg.add_text("Person 2", tag="person2")
-        dpg.add_text("No Position", tag="coordinate2")
+            def update_song_for_effect(): # updates when effect is selected
+                if dpg.does_item_exist("song_combo"):
+                    effects.sound_start(dpg.get_value("song_combo"))
+            
+            def update_ui_for_effect(): # updates when effect is selected
+                if dpg.does_item_exist("effect_control"):
+                    dpg.delete_item("effect_control") # deletes group to be recreated below
 
-        dpg.add_text("Person 3", tag="person3")
-        dpg.add_text("No Position", tag="coordinate3")
+                with dpg.group(parent="menu_bar", tag="effect_control", horizontal=True):
+                    #dpg.add_checkbox(label="Effect Checkbox", default_value=True)
+                    if dpg.get_value("effect_combo") == "Sound": # check if sound is created
+                        dpg.add_combo(
+                            effects.song_list,  
+                            tag="song_combo",
+                            width=300,
+                            #callback=update_ui_for_effect,  # Delayed binding
+                            default_value="Select a song"
+                        )
+                        dpg.add_button(
+                            label="Start",
+                            callback=update_song_for_effect,
+                            #user_data=dpg.get_value("song_combo")
+                        )
+                        dpg.add_button(
+                            label="Stop",
+                            callback=effects.sound_stop 
+                        )
 
-        dpg.add_text("Person 4", tag="person4")
-        dpg.add_text("No Position", tag="coordinate4")
+            dpg.add_combo(
+                effects.effect_list,  
+                tag="effect_combo",
+                width=300,
+                callback=update_ui_for_effect,  # Delayed binding
+                default_value="Select an effect"
+            )
+            
+                        #dpg.add_checkbox(label="Effect Checkbox", default_value=True)
+            #dpg.add_checkbox(label="Effect Checkbox 2", default_value=False)
 
-        dpg.add_text("Person 5", tag="person5")
-        dpg.add_text("No Position", tag="coordinate5")
-
-
-    with dpg.window(label="Dynamic Art", width=1920, height=1080):
-        # Create a drawlist widget that serves as our canvas.
-        # We assign it a tag ("drawing") so we can reference it later.
         with dpg.drawlist(width=1920, height=1080, tag="canvas"):
-            # Initially, you can draw static shapes here if desired.
+            pass
+
+        with dpg.group(tag="dynamic_ui"):
             pass
     
-    start_time = time.time()
+    
+    dpg.setup_dearpygui()
+    dpg.show_viewport()
+    #dpg.start_dearpygui()
+    #dpg.show_debug()
 
-    # def update_drawing(tracked_bodies):
-    #     """Update the drawing canvas with new shapes based on the current time."""
-    #     # Calculate elapsed time.
-    #     dpg.delete_item("canvas", children_only=True)
-        
-    #     if len(tracked_bodies):
-    #         body = tracked_bodies[0]
-    #         for joint in range(33):
-    #             keypoint = body.keypoint_2d[joint]
-    #             #print(keypoint[0])
-    #             dpg.draw_circle(center=(keypoint[0], keypoint[1]),
-    #                         radius=50,
-    #                         color=[255, 0, 0],
-    #                         fill=[255, 0, 0, 255],
-    #                         thickness=2,
-    #                         parent="canvas")
-    #def update_drawing(tracked_bodies):
-        
+    
 
-
-
-        
-
-
-
+    
     def update_frame():
         if zed.grab() == sl.ERROR_CODE.SUCCESS:
             zed.retrieve_image(image, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution) # Retrieve the image
@@ -143,9 +163,6 @@ def main():
             img_bgr = image.get_data()
             
             cv_viewer.render_2D(img_bgr,image_scale, bodies.body_list, body_param.enable_tracking, body_param.body_format) # This overalys a render onto the display
-            #if bodies.body_list:
-                #print(bodies.body_list[0].id)
-            #global chest_points
             
             # Loop through bodies and collect the zed keypoint[2] (assuming the body keypoint is an array of [x, y, z])
         
@@ -157,19 +174,13 @@ def main():
                     tracked_bodies.update({counter: body})
                     counter += 1
 
-            effects.day_to_night(tracked_bodies) # calls the effect from effects.py
+            selected_effect = dpg.get_value("effect_combo")          
+            
 
-            try:
-                dpg.set_value("coordinate1", tracked_bodies[0].keypoint_2d[2])
-                dpg.set_value("coordinate2", tracked_bodies[1].keypoint_2d[2])
-                dpg.set_value("coordinate3", tracked_bodies[2].keypoint_2d[2])
-                dpg.set_value("coordinate4", tracked_bodies[3].keypoint_2d[2])
-                dpg.set_value("coordinate5", tracked_bodies[4].keypoint_2d[2])
+            #print(dpg.get_value("song_combo"))
 
-            except:
-                pass
+            effects.call_effect(tracked_bodies, selected_effect) # calls the effect from effects.py
 
-            #print(tracked_bodies)
             # Convert to RGBA format
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
             img_rgba = np.zeros((img_rgb.shape[0], img_rgb.shape[1], 4), dtype=np.float32)
@@ -179,17 +190,18 @@ def main():
             # Update texture
             dpg.set_value("camera_texture", img_rgba.ravel())
 
-    dpg.show_viewport()
-    
     # Main loop
     while dpg.is_dearpygui_running(): # while program is running
         update_frame()
-        
         dpg.render_dearpygui_frame()
 
     # Cleanup
     zed.close()
     dpg.destroy_context()
 
+
 if __name__ == "__main__":
     main()
+
+
+

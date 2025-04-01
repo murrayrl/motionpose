@@ -1,10 +1,101 @@
 import dearpygui.dearpygui as dpg
 import math
-import random 
+import random
+import time
+from pygame import mixer
+
+
+effect_list = ("Day to Night", "Sound", "Insert Here", "Insert Here")
+
+song_list = ("JC SD", "Billy Joel - Moving Out (Anthony's Song)")
+
+
+
+songs = [
+    {
+        "name": "JC SD",
+        "tracks": ["music/sd_bass.wav", "music/sd_drums.wav", "music/sd_guitar.wav", "music/sd_keyboard.wav", "music/sd_vocals.wav"]
+    },
+    {
+        "name": "Billy Joel - Moving Out (Anthony's Song)",
+        "tracks": ["music/billymusic.mp3", "music/billyvocal.mp3"]
+    }
+]
+
+
+def call_effect(tracked_bodies, selected_effect):
+    if selected_effect == "Day to Night":
+        day_to_night(tracked_bodies)
+        
+    elif selected_effect == "Sound":
+        sound(tracked_bodies)
+        
+
+def sound(tracked_bodies):
+    if mixer.get_init() is not None: # check if mixer is running
+        if len(tracked_bodies): # check if any people in frame
+                
+            if len(tracked_bodies) >= 1:
+                mixer.Channel(1).set_volume(1.0) # fade in/out effect needed
+            else:
+                mixer.Channel(1).set_volume(0.0)
+
+            if len(tracked_bodies) >= 2: 
+                mixer.Channel(2).set_volume(1.0) # fade in/out effect needed
+            else:
+                mixer.Channel(2).set_volume(0.0)
+
+            if len(tracked_bodies) >= 3: 
+                mixer.Channel(3).set_volume(1.0) # fade in/out effect needed
+            else:
+                mixer.Channel(3).set_volume(0.0)
+
+            if len(tracked_bodies) >= 4: 
+                mixer.Channel(4).set_volume(1.0) # fade in/out effect needed
+            else:
+                mixer.Channel(4).set_volume(0.0)
+            
+            # if len(tracked_bodies) == 3:
+            #     mixer.Channel(2).set_volume(1.0)
+            # else:
+            #     mixer.Channel(2).set_volume(0.0)
+        else:
+            mixer.Channel(1).set_volume(0.0)
+
+def sound_start(song): # start music effect
+    mixer.pre_init(44100, -16, 2, 512)
+    mixer.init() # turn on music system
+    
+    # find song from callback
+
+    tracks = next(item for item in songs if item["name"] == song)["tracks"]
+
+    print(tracks)    
+    for track in tracks:
+        print(track)
+        mixer.Channel(tracks.index(track)).play(mixer.Sound(track)) # start playing drums
+        mixer.Channel(tracks.index(track)).pause() # are you fucking kidding me why does this work
+
+    # this is so stupid it shouldnt work
+    # we did this because before the audio had a delay between them.
+    for i in range(len(tracks)):
+        mixer.Channel(i).unpause()
+        mixer.Channel(i).set_volume(0.0) # mute to begin
+
+    mixer.Channel(0).set_volume(1.0) # unmute first channel
+
+
+def sound_stop(): # clean up function music
+    if mixer.get_init() is not None:
+        mixer.stop() # stop all channels of music
+        mixer.quit() # turns off music system
+    
+
 
 def day_to_night(tracked_bodies):
         width = dpg.get_viewport_width()
         height = dpg.get_viewport_height()
+        
         dpg.delete_item("canvas", children_only=True)
         
         # Fixed star positions as percentage of screen width/height
