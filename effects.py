@@ -7,13 +7,9 @@ from pygame import mixer
 
 effect_list = ("Day to Night", "Sound", "Insert Here", "Insert Here")
 
-song_list = ("JC SD", "Billy Joel - Moving Out (Anthony's Song)")
-
-
-
-songs = [
+songs = [ # includes name of song, along with the tracks that are apart of it
     {
-        "name": "JC SD",
+        "name": "Jessica Childress - Slow Down",
         "tracks": ["music/sd_bass.wav", "music/sd_drums.wav", "music/sd_guitar.wav", "music/sd_keyboard.wav", "music/sd_vocals.wav"]
     },
     {
@@ -21,9 +17,10 @@ songs = [
         "tracks": ["music/billymusic.mp3", "music/billyvocal.mp3"]
     }
 ]
-
+song_list = tuple(song["name"] for song in songs) # grabs song list from the names inside songs
 
 def call_effect(tracked_bodies, selected_effect):
+    '''Effect handler'''
     if selected_effect == "Day to Night":
         day_to_night(tracked_bodies)
         
@@ -31,38 +28,141 @@ def call_effect(tracked_bodies, selected_effect):
         sound(tracked_bodies)
         
 
-def sound(tracked_bodies):
-    if mixer.get_init() is not None: # check if mixer is running
-        if len(tracked_bodies): # check if any people in frame
-                
-            if len(tracked_bodies) >= 1:
-                mixer.Channel(1).set_volume(1.0) # fade in/out effect needed
-            else:
-                mixer.Channel(1).set_volume(0.0)
-
-            if len(tracked_bodies) >= 2: 
-                mixer.Channel(2).set_volume(1.0) # fade in/out effect needed
-            else:
-                mixer.Channel(2).set_volume(0.0)
-
-            if len(tracked_bodies) >= 3: 
-                mixer.Channel(3).set_volume(1.0) # fade in/out effect needed
-            else:
-                mixer.Channel(3).set_volume(0.0)
-
-            if len(tracked_bodies) >= 4: 
-                mixer.Channel(4).set_volume(1.0) # fade in/out effect needed
-            else:
-                mixer.Channel(4).set_volume(0.0)
+def floating_circles(tracked_bodies):
+    """
+    Creates an animation of circles smoothly and slowly floating up from the bottom 
+    of the screen and disappearing when they reach the top. The color of the circles 
+    depends on the number of people detected in the frame.
+    """
+    width = dpg.get_viewport_width()
+    height = dpg.get_viewport_height()
+    
+    dpg.delete_item("canvas", children_only=True)
+    
+    # Draw a basic background
+    dpg.draw_rectangle(
+        (0, 0),
+        (width, height),
+        fill=(10, 10, 20),  # Dark background
+        parent="canvas"
+    )
+    
+    # Count the number of people in frame
+    num_people = len(tracked_bodies)
+    
+    # No circles to create if no people are in frame
+    if num_people == 0:
+        return
+    
+    # Define circle color based on the number of people in the frame
+    if num_people == 1:
+        color = (255, 0, 0, 200)  # Red for 1 person
+    elif num_people == 2:
+        color = (0, 0, 255, 200)  # Blue for 2 people
+    elif num_people == 3:
+        color = (0, 255, 0, 200)  # Green for 3 people
+    else:
+        # For 4+ people, use a random pastel color
+        r = random.randint(100, 255)
+        g = random.randint(100, 255)
+        b = random.randint(100, 255)
+        color = (r, g, b, 200)  # Pastel color for more than 3 people
+    
+    # Use current time for smooth animation
+    current_time = time.time()
+    
+    # Store circle data in a global variable to maintain consistency between frames
+    global circle_data
+    
+    # Initialize circle data if it doesn't exist
+    if 'circle_data' not in globals() or not isinstance(circle_data, list):
+        circle_data = []
+        
+        # Generate initial circle data based on the number of people
+        num_circles = num_people * 10  # More circles for more people
+        
+        for i in range(num_circles):
+            # Random initial position
+            x = random.uniform(0, width)
+            # Start at different heights below and within the screen
+            y = random.uniform(height * 0.5, height + 200)
             
-            # if len(tracked_bodies) == 3:
-            #     mixer.Channel(2).set_volume(1.0)
-            # else:
-            #     mixer.Channel(2).set_volume(0.0)
+            # Random size
+            size = random.uniform(8, 25)
+            
+            # Use the calculated color for the circles
+            # Random but slow speed - much slower than before
+            speed = random.uniform(5, 15)  # pixels per second
+            
+            # Add to circle data
+            circle_data.append({
+                'x': x,
+                'y': y,
+                'size': size,
+                'color': color,
+                'speed': speed,
+                'last_update': current_time
+            })
+    
+    # Update circle positions based on elapsed time
+    new_circle_data = []
+    
+    for circle in circle_data:
+        # Calculate time delta for smooth movement
+        delta_time = current_time - circle['last_update']
+        
+        # Update position based on speed and time elapsed
+        new_y = circle['y'] - (circle['speed'] * delta_time)
+        
+        # Reset circles that have moved off the top of the screen
+        if new_y < -50:
+            # Reset to bottom
+            new_y = height + random.uniform(0, 100)
+            # Randomize x position for variety
+            new_x = random.uniform(0, width)
+            # Update the circle data
+            circle['x'] = new_x
         else:
-            mixer.Channel(1).set_volume(0.0)
+            new_x = circle['x']
+        
+        # Only keep circles that are visible or will be soon
+        if new_y < height + 300:
+            # Update circle data
+            circle['x'] = new_x
+            circle['y'] = new_y
+            circle['last_update'] = current_time
+            new_circle_data.append(circle)
+            
+            # Draw the circle if it's on screen
+            if -50 <= new_y <= height + 50:
+                dpg.draw_circle(
+                    center=(new_x, new_y),
+                    radius=circle['size'],
+                    fill=circle['color'],
+                    color=circle['color'],
+                    parent="canvas"
+                )
+    
+    # Update the global circle data
+    circle_data = new_circle_data
+
+
+def sound(tracked_bodies):
+    '''Handles muting/unmuting audio for sound effect'''
+    floating_circles(tracked_bodies)
+
+    if mixer.get_init() is None:  # early return if mixer isn't running
+        return
+        
+    num_bodies = len(tracked_bodies)
+    
+    # Set volumes for channels 1-4 based on number of tracked bodies
+    for channel_num in range(1, 5):
+        volume = 1.0 if num_bodies >= channel_num else 0.0
+        mixer.Channel(channel_num).set_volume(volume)
 
 def sound_start(song): # start music effect
+    '''Initalizes the pygame mixer and also starts music based on song selection'''
     mixer.pre_init(44100, -16, 2, 512)
     mixer.init() # turn on music system
     
@@ -70,9 +170,7 @@ def sound_start(song): # start music effect
 
     tracks = next(item for item in songs if item["name"] == song)["tracks"]
 
-    print(tracks)    
     for track in tracks:
-        print(track)
         mixer.Channel(tracks.index(track)).play(mixer.Sound(track)) # start playing drums
         mixer.Channel(tracks.index(track)).pause() # are you fucking kidding me why does this work
 

@@ -2,206 +2,296 @@ import dearpygui.dearpygui as dpg
 import pyzed.sl as sl
 import cv2
 import numpy as np
-import cv2
-import sys
-import pyzed.sl as sl
 import ogl_viewer.viewer as gl
-import time
 import cv_viewer.tracking_viewer as cv_viewer
-import numpy as np
-import argparse
-import math
-import random 
 import effects
 import os
 import shutil
+import webbrowser
 
-dpg.create_context()
+def open_github_homepage(): # may want to create a pop up that says "you are opening a link outside of the program, do you want to continue?"
+    webbrowser.open('https://github.com/murrayrl/motionpose/tree/ZED')  # Go to ZED github page
+def open_github_wiki():
+    webbrowser.open('https://github.com/murrayrl/motionpose/wiki/ZED-2i-Development')  # Go to wiki
 
 
-
-
-
-def main():
-    # Initialize ZED camera
-    zed = sl.Camera()
-    init_params = sl.InitParameters()
-    init_params.camera_resolution = sl.RESOLUTION.HD1080  # Use HD1080 video mode
-    init_params.coordinate_units = sl.UNIT.METER          # Set coordinate units
-    init_params.depth_mode = sl.DEPTH_MODE.ULTRA
-    init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-
-    # Open the camera
-    err = zed.open(init_params)
-    if err != sl.ERROR_CODE.SUCCESS:
-        print(f"Error opening camera: {err}")
-        return
-
-    # Enable Positional tracking (mandatory for object detection)
-    positional_tracking_parameters = sl.PositionalTrackingParameters()
-    # If the camera is static, uncomment the following line to have better performances
-    # positional_tracking_parameters.set_as_static = True
-    zed.enable_positional_tracking(positional_tracking_parameters)
+class ZEDCamera:
+    """Handles ZED camera initialization, configuration and operations."""
     
-    body_param = sl.BodyTrackingParameters()
-    body_param.enable_tracking = True                # Track people across images flow
-    body_param.enable_body_fitting = True            # Smooth skeleton move
-    body_param.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_FAST 
-    body_param.body_format = sl.BODY_FORMAT.BODY_34  # Choose the BODY_FORMAT you wish to use
-
-    # Enable Object Detection module
-    zed.enable_body_tracking(body_param)
-
-    body_runtime_param = sl.BodyTrackingRuntimeParameters()
-    body_runtime_param.detection_confidence_threshold = 40
-
-    # Get ZED camera information
-    camera_info = zed.get_camera_information()
-    # 2D viewer utilities
-    display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1920), min(camera_info.camera_configuration.resolution.height, 1080))
-    image_scale = [display_resolution.width / camera_info.camera_configuration.resolution.width
-                 , display_resolution.height / camera_info.camera_configuration.resolution.height]
-
-    # Create image objects
-    bodies = sl.Bodies()
-    image = sl.Mat()
-
-    #create Queue for music player
-
-
-    
-    if not os.path.exists("user_custom_layout.ini"):
-        shutil.copy("custom_layout.ini", "user_custom_layout.ini")
-
-    # Initialize Dear PyGUI
-    dpg.configure_app(load_init_file="user_custom_layout.ini", docking=True, docking_space=True) # must be called before create_viewport
-    dpg.create_viewport(title="Motionpose 2i", width=1920, height=1080)
-    
-    ZEDCamera = dpg.generate_uuid()
-    EffectDisplay = dpg.generate_uuid()
-
-    # Create texture registry
-    with dpg.texture_registry():
-        # Empty texture
-        dpg.add_raw_texture(
-            width=1920,
-            height=1080,
-            default_value=np.zeros((1080, 1920, 4), dtype=np.float32),
-            format=dpg.mvFormat_Float_rgba,
-            tag="camera_texture"
-        )
-
-    # Create window
-    with dpg.window(label="ZEDCamera", width=1920, height=1080, tag=ZEDCamera):
-        dpg.add_image("camera_texture")
-        """Dynamically update UI elements based on the selected effect."""
+    def __init__(self):
+        self.camera = sl.Camera()
+        self.image = sl.Mat()
+        self.bodies = sl.Bodies()
+        self.display_resolution = None
+        self.image_scale = None
         
-
-    # Create EffectDisplay window before calling update_ui_for_effect
-    with dpg.window(label="EffectDisplay", width=1920, height=1080, tag=EffectDisplay):
-        with dpg.group(horizontal=True, tag="menu_bar"):
-
-            def update_song_for_effect(): # updates when effect is selected
-                if dpg.does_item_exist("song_combo"):
-                    effects.sound_start(dpg.get_value("song_combo"))
+    def initialize(self):
+        """Initialize and configure the ZED camera."""
+        init_params = sl.InitParameters()
+        init_params.camera_resolution = sl.RESOLUTION.HD1080
+        init_params.coordinate_units = sl.UNIT.METER
+        init_params.depth_mode = sl.DEPTH_MODE.ULTRA
+        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        
+        # Open the camera
+        err = self.camera.open(init_params)
+        if err != sl.ERROR_CODE.SUCCESS:
+            print(f"Error opening camera: {err}")
+            return False
             
-            def update_ui_for_effect(): # updates when effect is selected
-                if dpg.does_item_exist("effect_control"):
-                    dpg.delete_item("effect_control") # deletes group to be recreated below
+        # Enable positional tracking
+        positional_tracking_parameters = sl.PositionalTrackingParameters()
+        # If the camera is static, uncomment the following line for better performance
+        # positional_tracking_parameters.set_as_static = True
+        self.camera.enable_positional_tracking(positional_tracking_parameters)
+        
+        # Configure body tracking
+        body_param = sl.BodyTrackingParameters()
+        body_param.enable_tracking = True
+        body_param.enable_body_fitting = True
+        body_param.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_FAST
+        body_param.body_format = sl.BODY_FORMAT.BODY_34
+        
+        # Enable body tracking
+        self.camera.enable_body_tracking(body_param)
+        
+        # Store body parameters for later use
+        self.body_param = body_param
+        self.body_runtime_param = sl.BodyTrackingRuntimeParameters()
+        self.body_runtime_param.detection_confidence_threshold = 40
+        
+        # Get camera information and set display resolution
+        camera_info = self.camera.get_camera_information()
+        self.display_resolution = sl.Resolution(
+            min(camera_info.camera_configuration.resolution.width, 1920),
+            min(camera_info.camera_configuration.resolution.height, 1080)
+        )
+        
+        self.image_scale = [
+            self.display_resolution.width / camera_info.camera_configuration.resolution.width,
+            self.display_resolution.height / camera_info.camera_configuration.resolution.height
+        ]
+        
+        return True
+        
+    def grab_frame(self):
+        """Grab a new frame from the camera."""
+        return self.camera.grab() == sl.ERROR_CODE.SUCCESS
+        
+    def get_image_and_bodies(self):
+        """Retrieve the current image and detected bodies."""
+        self.camera.retrieve_image(self.image, sl.VIEW.LEFT, sl.MEM.CPU, self.display_resolution)
+        self.camera.retrieve_bodies(self.bodies, self.body_runtime_param)
+        
+        img_bgr = self.image.get_data()
+        cv_viewer.render_2D(
+            img_bgr, 
+            self.image_scale, 
+            self.bodies.body_list, 
+            self.body_param.enable_tracking, 
+            self.body_param.body_format
+        )
+        
+        # Process tracked bodies
+        tracked_bodies = {}
+        counter = 0
+        for body in self.bodies.body_list:
+            if str(body.tracking_state) == "OK" and counter < 5:
+                tracked_bodies.update({counter: body})
+                counter += 1
+                
+        return img_bgr, tracked_bodies
+        
+    def close(self):
+        """Close the camera properly."""
+        self.camera.close()
 
-                with dpg.group(parent="menu_bar", tag="effect_control", horizontal=True):
-                    #dpg.add_checkbox(label="Effect Checkbox", default_value=True)
-                    if dpg.get_value("effect_combo") == "Sound": # check if sound is created
-                        dpg.add_combo(
-                            effects.song_list,  
-                            tag="song_combo",
-                            width=300,
-                            #callback=update_ui_for_effect,  # Delayed binding
-                            default_value="Select a song"
-                        )
-                        dpg.add_button(
-                            label="Start",
-                            callback=update_song_for_effect,
-                            #user_data=dpg.get_value("song_combo")
-                        )
-                        dpg.add_button(
-                            label="Stop",
-                            callback=effects.sound_stop 
-                        )
 
-            dpg.add_combo(
-                effects.effect_list,  
-                tag="effect_combo",
-                width=300,
-                callback=update_ui_for_effect,  # Delayed binding
-                default_value="Select an effect"
+'''----------------------------------------------- End of ZED Camera Class ----------------------------------------------------------------'''
+
+
+class MotionPoseUI:
+    """Handles the DearPyGUI interface setup and management."""
+    
+    def __init__(self, width=1920, height=1080):
+        self.width = width
+        self.height = height
+        self.zed_window_tag = dpg.generate_uuid()
+        self.effect_window_tag = dpg.generate_uuid()
+        
+    def initialize(self):
+        """Initialize the UI components."""
+        # Check for custom layout file
+        if not os.path.exists("user_custom_layout.ini"):
+            shutil.copy("custom_layout.ini", "user_custom_layout.ini")
+            
+        # Configure the application
+        dpg.configure_app(
+            load_init_file="user_custom_layout.ini", 
+            docking=True, 
+            docking_space=True
+        )
+        
+        # Create viewport
+        dpg.create_viewport(
+            title="Motionpose 2i", 
+            width=self.width, 
+            height=self.height
+        )
+        
+        # Setup texture registry
+        self._setup_texture_registry()
+        
+        # Create windows
+        self._setup_menu_bar()
+        self._create_camera_window()
+        self._create_effect_window()
+        
+        # Setup and show
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
+        
+    def _setup_menu_bar(self):
+        with dpg.viewport_menu_bar():
+            with dpg.menu(label="File"):
+                pass
+                #dpg.add_menu_item(label="Save", callback=print_me)
+                #dpg.add_menu_item(label="Save As", callback=print_me)
+
+                #with dpg.menu(label="Settings"):
+                    #dpg.add_menu_item(label="Setting 1", callback=print_me, check=True)
+                    #dpg.add_menu_item(label="Setting 2", callback=print_me)
+            with dpg.menu(label="Edit"):
+                pass
+
+            with dpg.menu(label="View"):
+                pass
+
+            with dpg.menu(label="Help"):
+                dpg.add_menu_item(label="Quick Help", callback=open_github_homepage) # opens ZED github page
+                dpg.add_menu_item(label="Diagnostics") # idk what this will do
+                dpg.add_menu_item(label="About Motionpose", callback=open_github_wiki) # opens ZED wiki page
+            
+
+    def _setup_texture_registry(self):
+        """Setup texture registry for camera image."""
+        with dpg.texture_registry():
+            dpg.add_raw_texture(
+                width=self.width,
+                height=self.height,
+                default_value=np.zeros((self.height, self.width, 4), dtype=np.float32),
+                format=dpg.mvFormat_Float_rgba,
+                tag="camera_texture"
             )
             
-                        #dpg.add_checkbox(label="Effect Checkbox", default_value=True)
-            #dpg.add_checkbox(label="Effect Checkbox 2", default_value=False)
-
-        with dpg.drawlist(width=1920, height=1080, tag="canvas"):
-            pass
-
-        with dpg.group(tag="dynamic_ui"):
-            pass
-    
-    
-    dpg.setup_dearpygui()
-    dpg.show_viewport()
-    #dpg.start_dearpygui()
-    #dpg.show_debug()
-
-    
-
-    
-    def update_frame():
-        if zed.grab() == sl.ERROR_CODE.SUCCESS:
-            zed.retrieve_image(image, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution) # Retrieve the image
-            zed.retrieve_bodies(bodies, body_runtime_param)
-
-            img_bgr = image.get_data()
-            
-            cv_viewer.render_2D(img_bgr,image_scale, bodies.body_list, body_param.enable_tracking, body_param.body_format) # This overalys a render onto the display
-            
-            # Loop through bodies and collect the zed keypoint[2] (assuming the body keypoint is an array of [x, y, z])
+    def _create_camera_window(self):
+        """Create the camera display window."""
+        with dpg.window(label="ZEDCamera", width=self.width, height=self.height, tag=self.zed_window_tag):
+            dpg.add_image("camera_texture")
         
-            counter = 0   
-            tracked_bodies = {}        
-            for body in bodies.body_list:
-                if str(body.tracking_state) == "OK" and counter < 5:
-                    #keypoint = body.keypoint_2d[15]  # Get the 3D coordinates [x, y, z] 
-                    tracked_bodies.update({counter: body})
-                    counter += 1
 
-            selected_effect = dpg.get_value("effect_combo")          
+    def _create_effect_window(self):
+        """Create the effect controls window."""
+        with dpg.window(label="EffectDisplay", width=self.width, height=self.height, tag=self.effect_window_tag):
+            with dpg.group(horizontal=True, tag="menu_bar"):
+                dpg.add_combo(
+                    effects.effect_list,
+                    tag="effect_combo",
+                    width=200,
+                    callback=self.update_ui_for_effect,
+                    default_value="Select an effect"
+                )
+                
+            with dpg.drawlist(width=self.width, height=self.height, tag="canvas"):
+                pass
+                
+            with dpg.group(tag="dynamic_ui"):
+                pass
+                
+    def update_ui_for_effect(self):
+        """Update UI elements based on selected effect."""
+        if dpg.does_item_exist("effect_control"):
+            dpg.delete_item("effect_control")
             
+        with dpg.group(parent="menu_bar", tag="effect_control", horizontal=True):
+            if dpg.get_value("effect_combo") == "Sound":
+                dpg.add_combo(
+                    effects.song_list,
+                    tag="song_combo",
+                    width=350,
+                    default_value="Select a song"
+                )
+                dpg.add_button(
+                    label="Start",
+                    callback=self.update_song_for_effect
+                )
+                dpg.add_button(
+                    label="Stop",
+                    callback=effects.sound_stop
+                )
+                
+    def update_song_for_effect(self):
+        """Start playing selected song."""
+        if dpg.does_item_exist("song_combo"):
+            effects.sound_start(dpg.get_value("song_combo"))
+            
+    def update_frame_display(self, img_rgba):
+        """Update the displayed camera frame."""
+        dpg.set_value("camera_texture", img_rgba.ravel())
+        
+    def is_running(self):
+        """Check if the UI is still running."""
+        return dpg.is_dearpygui_running()
+        
+    def render_frame(self):
+        """Render a single frame."""
+        dpg.render_dearpygui_frame()
+        
+    def cleanup(self):
+        """Clean up resources."""
+        dpg.destroy_context()
 
-            #print(dpg.get_value("song_combo"))
+'''----------------------------------------------- End of DearPyGui Class ----------------------------------------------------------------'''
 
-            effects.call_effect(tracked_bodies, selected_effect) # calls the effect from effects.py
-
-            # Convert to RGBA format
+def main():
+    # Create DearPyGUI context
+    dpg.create_context()
+    
+    # Initialize camera
+    zed_camera = ZEDCamera()
+    if not zed_camera.initialize():
+        dpg.destroy_context()
+        return
+        
+    # Initialize UI
+    ui = MotionPoseUI()
+    ui.initialize()
+    
+    # Main loop
+    while ui.is_running():
+        if zed_camera.grab_frame():
+            # Get image and tracked bodies
+            img_bgr, tracked_bodies = zed_camera.get_image_and_bodies()
+            
+            # Process effects based on selection
+            selected_effect = dpg.get_value("effect_combo")
+            effects.call_effect(tracked_bodies, selected_effect)
+            
+            # Convert image for display
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
             img_rgba = np.zeros((img_rgb.shape[0], img_rgb.shape[1], 4), dtype=np.float32)
             img_rgba[:, :, :3] = img_rgb / 255.0
             img_rgba[:, :, 3] = 1.0  # Alpha channel
             
-            # Update texture
-            dpg.set_value("camera_texture", img_rgba.ravel())
-
-    # Main loop
-    while dpg.is_dearpygui_running(): # while program is running
-        update_frame()
-        dpg.render_dearpygui_frame()
-
+            # Update display
+            ui.update_frame_display(img_rgba)
+            
+        ui.render_frame()
+    
     # Cleanup
-    zed.close()
-    dpg.destroy_context()
+    zed_camera.close()
+    ui.cleanup()
 
 
 if __name__ == "__main__":
     main()
-
-
-
