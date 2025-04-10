@@ -1,0 +1,12 @@
+🔍 Checking loudness for: AccelerationGlowVisual.wav
+    ➤ Integrated Loudness: -24.18 LUFS
+🔍 Checking loudness for: ElbowTrailsVisual.wav
+    ➤ Integrated Loudness: -26.72 LUFS
+🔍 Checking loudness for: FeetHeatmapVisual.wav
+    ➤ Integrated Loudness: -43.33 LUFS
+🔍 Checking loudness for: HipCirclesVisual.wav
+    ➤ Integrated Loudness: -17.93 LUFS
+🔍 Checking loudness for: SkeletonVisual.wav
+    ➤ Integrated Loudness: -12.23 LUFS
+🔍 Checking loudness for: SpineLineVisual.wav
+    ➤ Integrated Loudness: -20.67 LUFS

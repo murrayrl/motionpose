@@ -1,0 +1,259 @@
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+Guessed Channel Layout for Input Stream #0.0 : mono
+Input #0, wav, from 'sounds/AccelerationGlowVisual.wav':
+  Metadata:
+    comment         : Genie appearing from and returning to a bottle
+    encoded_by      : Craig Smith
+    originator_reference: S31-36 Genie appearing from and 
+    time_reference  : 0
+    coding_history  : 
+  Duration: 00:00:16.86, bitrate: 1152 kb/s
+  Stream #0:0: Audio: pcm_s24le ([1][0][0][0] / 0x0001), 48000 Hz, mono, s32 (24 bit), 1152 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s24le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    comment         : Genie appearing from and returning to a bottle
+    encoded_by      : Craig Smith
+    originator_reference: S31-36 Genie appearing from and 
+    time_reference  : 0
+    coding_history  : 
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, mono, s16, 3072 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=N/A    size=N/A time=00:00:16.85 bitrate=N/A speed=52.4x    
+video:0kB audio:6321kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x5556879e8ae0] 
+Input Integrated:    -24.2 LUFS
+Input True Peak:     -12.3 dBTP
+Input LRA:            11.7 LU
+Input Threshold:     -34.9 LUFS
+
+Output Integrated:   -22.4 LUFS
+Output True Peak:     -8.9 dBTP
+Output LRA:           11.9 LU
+Output Threshold:    -33.3 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        -0.6 LU
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+Guessed Channel Layout for Input Stream #0.0 : stereo
+Input #0, wav, from 'sounds/ElbowTrailsVisual.wav':
+  Duration: 00:00:04.72, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, stereo, s16, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, stereo, s16, 6144 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=N/A    size=N/A time=00:00:04.71 bitrate=N/A speed=24.9x    
+video:0kB audio:3539kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x55562638bbd0] 
+Input Integrated:    -26.7 LUFS
+Input True Peak:      -8.5 dBTP
+Input LRA:            11.0 LU
+Input Threshold:     -38.5 LUFS
+
+Output Integrated:   -22.4 LUFS
+Output True Peak:     -5.3 dBTP
+Output LRA:            3.6 LU
+Output Threshold:    -33.7 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        -0.6 LU
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+[wav @ 0x5555c7e784e0] Discarding ID3 tags because more suitable tags were found.
+Guessed Channel Layout for Input Stream #0.0 : stereo
+Input #0, wav, from 'sounds/FeetHeatmapVisual.wav':
+  Metadata:
+    artist          : D.M. McCalls
+    comment         : Person running with boots
+    date            : 2016
+    genre           : Footsteps
+  Duration: 00:00:05.87, bitrate: 1536 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 48000 Hz, stereo, s16, 1536 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    artist          : D.M. McCalls
+    comment         : Person running with boots
+    date            : 2016
+    genre           : Footsteps
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, stereo, s16, 6144 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=N/A    size=N/A time=00:00:05.86 bitrate=N/A speed=25.4x    
+video:0kB audio:4399kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x5555c7ebc770] 
+Input Integrated:    -43.3 LUFS
+Input True Peak:     -16.8 dBTP
+Input LRA:             2.0 LU
+Input Threshold:     -53.6 LUFS
+
+Output Integrated:   -23.6 LUFS
+Output True Peak:     -1.0 dBTP
+Output LRA:            1.2 LU
+Output Threshold:    -33.7 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        +0.6 LU
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+Guessed Channel Layout for Input Stream #0.0 : stereo
+Input #0, wav, from 'sounds/HipCirclesVisual.wav':
+  Duration: 00:00:21.33, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, stereo, s16, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, stereo, s16, 6144 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=   0x    size=N/A time=00:00:10.60 bitrate=N/A speed=21.2x    size=N/A time=00:00:21.33 bitrate=N/A speed=23.7x    
+video:0kB audio:16000kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x555657d3fbd0] 
+Input Integrated:    -17.9 LUFS
+Input True Peak:      -1.8 dBTP
+Input LRA:             2.6 LU
+Input Threshold:     -28.2 LUFS
+
+Output Integrated:   -23.2 LUFS
+Output True Peak:     -7.0 dBTP
+Output LRA:            1.5 LU
+Output Threshold:    -33.4 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        +0.2 LU
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+Guessed Channel Layout for Input Stream #0.0 : stereo
+Input #0, wav, from 'sounds/SkeletonVisual.wav':
+  Metadata:
+    encoder         : Lavf59.27.100
+  Duration: 00:00:20.38, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, stereo, s16, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, stereo, s16, 6144 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=N/A    size=N/A time=00:00:10.60 bitrate=N/A speed=21.2x    size=N/A time=00:00:20.37 bitrate=N/A speed=23.8x    
+video:0kB audio:15282kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x555610a23bd0] 
+Input Integrated:    -12.2 LUFS
+Input True Peak:      -1.8 dBTP
+Input LRA:             2.5 LU
+Input Threshold:     -22.4 LUFS
+
+Output Integrated:   -22.6 LUFS
+Output True Peak:    -11.2 dBTP
+Output LRA:            1.2 LU
+Output Threshold:    -32.8 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        -0.4 LU
+ffmpeg version 5.1.6-0+deb12u1+rpt1 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14)
+  configuration: --prefix=/usr --extra-version=0+deb12u1+rpt1 --toolchain=hardened --incdir=/usr/include/aarch64-linux-gnu --enable-gpl --disable-stripping --disable-mmal --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sand --enable-sdl2 --disable-sndio --enable-libjxl --enable-neon --enable-v4l2-request --enable-libudev --enable-epoxy --libdir=/usr/lib/aarch64-linux-gnu --arch=arm64 --enable-pocketsphinx --enable-librsvg --enable-libdc1394 --enable-libdrm --enable-vout-drm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+Guessed Channel Layout for Input Stream #0.0 : stereo
+Input #0, wav, from 'sounds/SpineLineVisual.wav':
+  Metadata:
+    encoder         : FL Studio 20
+  Duration: 00:00:10.67, bitrate: 1536 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 48000 Hz, stereo, s16, 1536 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    encoder         : Lavf59.27.100
+  Stream #0:0: Audio: pcm_s16le, 192000 Hz, stereo, s16, 6144 kb/s
+    Metadata:
+      encoder         : Lavc59.37.100 pcm_s16le
+size=N/A time=00:00:00.00 bitrate=N/A speed=N/A    size=N/A time=00:00:10.66 bitrate=N/A speed=24.9x    
+video:0kB audio:8000kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+[Parsed_loudnorm_0 @ 0x5555d52ebbd0] 
+Input Integrated:    -20.7 LUFS
+Input True Peak:      -6.9 dBTP
+Input LRA:             0.4 LU
+Input Threshold:     -30.7 LUFS
+
+Output Integrated:   -23.0 LUFS
+Output True Peak:     -9.2 dBTP
+Output LRA:            0.4 LU
+Output Threshold:    -33.0 LUFS
+
+Normalization Type:   Dynamic
+Target Offset:        -0.0 LU

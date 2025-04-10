@@ -1,0 +1,46 @@
+EXPERIMENT DIRECTORY
+
+This directory contains the all files used to perform the script together
+
+Broadly, there are several subdirectories, but the current main ones to pay attention to are
+
+1) multi_person_visuals
+
+This contains the specific visuals that the .py scripts in TEST_SCRIPT_ARYAN work with
+These visuals support person tracking, as well as different colors for each person.
+
+This should not be compared to old_multi_vis(no color for diff people), or visuals(single person only)
+
+2) sounds
+
+This directory contains all the sounds that are accessed by the .py script
+
+NOTE: each sound must match the corresponding visual name for the script to work correctly
+
+These sounds are in a .wav format to allow for rich uncompressed audio compared to .mp3
+
+Along with this, you may notice the presence of several .sh scripts present in the directory.
+These are helper scripts used to either manipulate, or access sound, or run other experiments.
+
+There are comments through the code for understanding how the pipeline fits together
+
+
+
+
+FURTHER RESOURCES
+
+1) https://www.raspberrypi.com/documentation/computers/ai.html
+
+Further resources link at the bottom here has the github for the ai accelerator
+
+2) https://www.raspberrypi.com/documentation/accessories/ai-camera.html#ai-camera
+
+Running models on the pipeline and basic tests
+
+3) https://github.com/raspberrypi/picamera2/tree/main/examples/imx500
+
+4) https://github.com/hailo-ai/hailo-rpi5-examples/tree/main
+
+3 and 4 are the ai camera and ai accelerator chip repositories to look at the examples to see how
+to create a custom pipeline for the project
+
