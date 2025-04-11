@@ -1,0 +1,14 @@
+Most applications have most of the keypoints, but some might not have
+
+q, <-. -> up, down should be common
+
+Below is for AV2.py
+
+q: Quit the application
+Left Arrow: Switch to the previous screen mode (Visual Only -> Split-Screen -> Keypoints & BBox)
+Right Arrow: Switch to the next screen mode (Visual Only -> Split-Screen -> Keypoints & BBox)
+Up Arrow: Select the next visual (in Visual Only or Split-Screen modes)
+Down Arrow: Select the previous visual (in Visual Only or Split-Screen modes)
+k: Toggle visibility of keypoints in Keypoints & BBox or Split-Screen modes
+p: Toggle between full-screen and windowed mode
+t: Toggle tutorial audio (welcome.wav) when on default Motion Trails visual, or switch to Motion Trails with audio enabled
