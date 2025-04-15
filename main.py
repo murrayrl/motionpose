@@ -31,7 +31,7 @@ class ZEDCamera:
         init_params.camera_resolution = sl.RESOLUTION.HD1080
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA
-        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        init_params.coordinate_system = sl.COORDINATE_SYSTEM.LEFT_HANDED_Y_UP
         
         # Open the camera
         err = self.camera.open(init_params)
@@ -154,13 +154,8 @@ class MotionPoseUI:
     def _setup_menu_bar(self):
         with dpg.viewport_menu_bar():
             with dpg.menu(label="File"):
-                pass
-                #dpg.add_menu_item(label="Save", callback=print_me)
-                #dpg.add_menu_item(label="Save As", callback=print_me)
-
-                #with dpg.menu(label="Settings"):
-                    #dpg.add_menu_item(label="Setting 1", callback=print_me, check=True)
-                    #dpg.add_menu_item(label="Setting 2", callback=print_me)
+                ...
+                
             with dpg.menu(label="Edit"):
                 pass
 
@@ -214,12 +209,27 @@ class MotionPoseUI:
             dpg.delete_item("effect_control")
             
         with dpg.group(parent="menu_bar", tag="effect_control", horizontal=True):
-            if dpg.get_value("effect_combo") == "Sound":
+            if dpg.get_value("effect_combo") == "Multitrack Music":
+                
                 dpg.add_combo(
                     effects.song_list,
                     tag="song_combo",
                     width=350,
                     default_value="Select a song"
+                )
+                dpg.add_button(
+                    label="Start",
+                    callback=self.update_song_for_effect
+                )
+                dpg.add_button(
+                    label="Stop",
+                    callback=effects.sound_stop
+                )
+            if dpg.get_value("effect_combo") == "3d Volume Controller":
+                dpg.add_combo(
+                    tag="song_combo",
+                    width=350,
+                    default_value="Billy Joel - Movin' Out (Anthony's Song)"
                 )
                 dpg.add_button(
                     label="Start",
