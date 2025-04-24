@@ -8,11 +8,16 @@ import effects
 import os
 import shutil
 import webbrowser
+import sys
+import logging
+import tempfile
+from utils import setup_logging, resource_path
 
 def open_github_homepage(): # may want to create a pop up that says "you are opening a link outside of the program, do you want to continue?"
     webbrowser.open('https://github.com/murrayrl/motionpose/tree/ZED')  # Go to ZED github page
 def open_github_wiki():
     webbrowser.open('https://github.com/murrayrl/motionpose/wiki/ZED-2i-Development')  # Go to wiki
+
 
 
 class ZEDCamera:
@@ -36,7 +41,7 @@ class ZEDCamera:
         # Open the camera
         err = self.camera.open(init_params)
         if err != sl.ERROR_CODE.SUCCESS:
-            print(f"Error opening camera: {err}")
+            logging.error(f"Error opening camera: {err}")
             return False
             
         # Enable positional tracking
@@ -121,32 +126,50 @@ class MotionPoseUI:
         
     def initialize(self):
         """Initialize the UI components."""
+        # Add resource path helper function at the beginning of your file
+        def resource_path(relative_path):
+            """Get absolute path to resource, works for dev and for PyInstaller"""
+            try:
+                # PyInstaller creates a temp folder and stores path in _MEIPASS
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.abspath(".")
+            return os.path.join(base_path, relative_path)
+        
+        # Use resource_path for source file
+        source_layout = resource_path("custom_layout.ini")
+        
+        # For user_custom_layout.ini, use a writable location (not inside the package)
+        user_dir = os.path.expanduser("~/.motionpose2i")
+        os.makedirs(user_dir, exist_ok=True)
+        user_layout = os.path.join(user_dir, "user_custom_layout.ini")
+        
         # Check for custom layout file
-        if not os.path.exists("user_custom_layout.ini"):
-            shutil.copy("custom_layout.ini", "user_custom_layout.ini")
-            
+        if not os.path.exists(user_layout):
+            shutil.copy(source_layout, user_layout)
+        
         # Configure the application
         dpg.configure_app(
-            load_init_file="user_custom_layout.ini", 
-            docking=True, 
+            load_init_file=user_layout,
+            docking=True,
             docking_space=True
         )
-        
+    
         # Create viewport
         dpg.create_viewport(
-            title="Motionpose 2i", 
-            width=self.width, 
+            title="Motionpose 2i",
+            width=self.width,
             height=self.height
         )
-        
+    
         # Setup texture registry
         self._setup_texture_registry()
-        
+    
         # Create windows
         self._setup_menu_bar()
         self._create_camera_window()
         self._create_effect_window()
-        
+    
         # Setup and show
         dpg.setup_dearpygui()
         dpg.show_viewport()
@@ -266,7 +289,21 @@ class MotionPoseUI:
 def main():
     # Create DearPyGUI context
     dpg.create_context()
-    
+    log_file = setup_logging()
+    logging.info("Starting import of custom modules")
+    try:
+        import cv_viewer.tracking_viewer as cv_viewer
+        logging.info("Successfully imported cv_viewer")
+    except Exception as e:
+        logging.error(f"Error importing cv_viewer: {e}")
+
+    try:
+        import ogl_viewer.viewer as gl
+        logging.info("Successfully imported ogl_viewer")
+    except Exception as e:
+        logging.error(f"Error importing ogl_viewer: {e}")
+
+
     # Initialize camera
     zed_camera = ZEDCamera()
     if not zed_camera.initialize():
@@ -301,6 +338,8 @@ def main():
     # Cleanup
     zed_camera.close()
     ui.cleanup()
+
+    logging.info("Application Closing")
 
 
 if __name__ == "__main__":

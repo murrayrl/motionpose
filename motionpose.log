@@ -1,0 +1,30 @@
+2025-04-17 15:18:47,165 - root - INFO - Application started - Log file: motionpose.log
+2025-04-17 15:18:47,165 - root - INFO - Running from: C:\Users\Purdu\Zed_Integration
+2025-04-17 15:18:47,166 - root - INFO - Starting import of custom modules
+2025-04-17 15:18:47,166 - root - INFO - Successfully imported cv_viewer
+2025-04-17 15:18:47,166 - root - INFO - Successfully imported ogl_viewer
+2025-04-17 15:18:59,774 - root - INFO - Starting sound: Billy Joel - Movin' Out (Anthony's Song)
+2025-04-17 15:18:59,779 - root - INFO - Found tracks: ['music/billymusic.mp3', 'music/billyvocal.mp3']
+2025-04-17 15:18:59,779 - root - INFO - Loading track: C:\Users\Purdu\Zed_Integration\music/billymusic.mp3
+2025-04-17 15:18:59,779 - root - INFO - File exists: True
+2025-04-17 15:18:59,929 - root - INFO - Loading track: C:\Users\Purdu\Zed_Integration\music/billyvocal.mp3
+2025-04-17 15:18:59,929 - root - INFO - File exists: True
+2025-04-17 15:19:00,077 - root - INFO - Audio playback started successfully
+2025-04-17 15:23:03,859 - root - INFO - Application started - Log file: motionpose.log
+2025-04-17 15:23:03,859 - root - INFO - Running from: C:\Users\Purdu\Zed_Integration
+2025-04-17 15:23:03,859 - root - INFO - Starting import of custom modules
+2025-04-17 15:23:03,859 - root - INFO - Successfully imported cv_viewer
+2025-04-17 15:23:03,859 - root - INFO - Successfully imported ogl_viewer
+2025-04-17 15:23:11,495 - root - INFO - Starting sound: Billy Joel - Movin' Out (Anthony's Song)
+2025-04-17 15:23:11,495 - root - INFO - Found tracks: ['music/billymusic.mp3', 'music/billyvocal.mp3']
+2025-04-17 15:23:11,495 - root - INFO - Loading track: C:\Users\Purdu\Zed_Integration\music/billymusic.mp3
+2025-04-17 15:23:11,495 - root - INFO - File exists: True
+2025-04-17 15:23:11,646 - root - INFO - Loading track: C:\Users\Purdu\Zed_Integration\music/billyvocal.mp3
+2025-04-17 15:23:11,647 - root - INFO - File exists: True
+2025-04-17 15:23:11,808 - root - INFO - Audio playback started successfully
+2025-04-17 15:55:24,635 - root - INFO - Application started - Log file: motionpose.log
+2025-04-17 15:55:24,635 - root - INFO - Running from: C:\Users\Purdu\Zed_Integration
+2025-04-17 15:55:24,636 - root - INFO - Starting import of custom modules
+2025-04-17 15:55:24,636 - root - INFO - Successfully imported cv_viewer
+2025-04-17 15:55:24,636 - root - INFO - Successfully imported ogl_viewer
+2025-04-17 15:55:33,349 - root - INFO - Application Closing

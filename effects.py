@@ -4,6 +4,9 @@ import random
 import time
 from pygame import mixer
 import numpy as np
+from utils import resource_path
+import logging
+import os
 
 
 effect_list = ("Day to Night", "Multitrack Music", "3d Volume Controller", "Day to Night 3d")
@@ -47,8 +50,6 @@ def sound_3d(tracked_bodies):
     if mixer.get_init() is None:  # early return if mixer isn't running
         return
     
-
-
     num_bodies = len(tracked_bodies)
 
     if num_bodies > 0:
@@ -269,24 +270,36 @@ def sound(tracked_bodies):
         mixer.Channel(channel_num).set_volume(volume)
 
 def sound_start(song): # start music effect
-    '''Initalizes the pygame mixer and also starts music based on song selection'''
+    '''Initializes the pygame mixer and also starts music based on song selection'''
     mixer.pre_init(44100, -16, 2, 512)
     mixer.init() # turn on music system
+    
+    # Logging for debugging
+    logging.info(f"Starting sound: {song}")
     
     # find song from callback
     try:
         tracks = next(item for item in songs if item["name"] == song)["tracks"]
+        logging.info(f"Found tracks: {tracks}")
+        
         for track in tracks:
-            mixer.Channel(tracks.index(track)).play(mixer.Sound(track)) # start playing drums
+            # Use resource_path for each audio file
+            track_path = resource_path(track)
+            logging.info(f"Loading track: {track_path}")
+            logging.info(f"File exists: {os.path.exists(track_path)}")
+            
+            mixer.Channel(tracks.index(track)).play(mixer.Sound(track_path)) # start playing drums
             mixer.Channel(tracks.index(track)).pause() # are you fucking kidding me why does this work
-
+            
         # this is so stupid it shouldnt work
         # we did this because before the audio had a delay between them.
         for i in range(len(tracks)):
             mixer.Channel(i).unpause()
             mixer.Channel(i).set_volume(0.0) # mute to begin
-
-    except:
+            
+        logging.info("Audio playback started successfully")
+    except Exception as e:
+        logging.error(f"Error playing audio: {e}")
         pass
 
     
