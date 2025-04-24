@@ -10,7 +10,6 @@ import shutil
 import webbrowser
 import sys
 import logging
-import tempfile
 from utils import setup_logging, resource_path
 
 def open_github_homepage(): # may want to create a pop up that says "you are opening a link outside of the program, do you want to continue?"
