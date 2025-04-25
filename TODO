@@ -1,5 +1,17 @@
+Application Tasks
+
 1) Incorporate Face detecting and gesture control
-2) Integrate audio interaction with visual pipeline
-3) Create Motion Trails Visual for multiple people (current only for single person)
-4) Create pipeline for manipulated sounds for a visual to be added
-5) Experiment with sound normalization to -23 LUFS or above
+
+
+Maintenance Tasks
+
+1) Create experiments directory for all experiments
+So under experiments, we have 3 types
+ 
+	i) Audio experiments - only audio
+	ii) Video experiments - only video
+	iii) Audio Visual - experimentation with both
+	iv) Any new experiments
+
+2) Migrate scripts without breaking them
+ 
