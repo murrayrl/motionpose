@@ -2,4 +2,5 @@
 *.log
 *errors.txt
 *.log.*
-
+hailo-apps-infra/
+gstshark_*/
