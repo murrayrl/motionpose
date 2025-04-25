@@ -1,0 +1,5 @@
+# Ignore all log files and error dumps
+*.log
+*errors.txt
+*.log.*
+
