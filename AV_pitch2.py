@@ -1,3 +1,5 @@
+## Code from AV_2.py #####
+
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
@@ -10,16 +12,16 @@ import cv2
 import importlib.util
 
 from hailo_apps_infra.hailo_rpi_common import (
-    get_caps_from_pad,
-    get_numpy_from_buffer,
-    app_callback_class,
-)
+        get_caps_from_pad,
+        get_numpy_from_buffer,
+        app_callback_class,
+        )
 from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
 
 # Initialize GStreamer and Pygame
 Gst.init(None)
 pygame.init()
-pygame.mixer.quit()  # Disable Pygame's mixer to avoid conflicts with GStreamer
+pygame.mixer.init()
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_width(), screen.get_height()
 HALF_SCREEN_WIDTH = SCREEN_WIDTH // 2
@@ -40,57 +42,28 @@ KEYPOINT_COLOR = (255, 0, 0)
 # Visualization settings
 visuals = []
 visual_names = []
+sounds = []
 current_visual_index = 0
 screen_state = 1  # Start in split-screen mode
 confidence_threshold = 0.5
 show_keypoints = True
+current_sound = None
 tutorial_sound_enabled = True
+sound_array = []
 
 # Motion trail storage
 trail_length = 30
-person_trails = {}  # Dictionary to store trails per person
+left_wrist_trail = []
+right_wrist_trail = []
 
-# GStreamer audio pipelines for multiple sounds per person and keypoint
-audio_pipelines = {}
-
-def create_audio_pipeline(sound_file):
-    pipeline = Gst.Pipeline()
-    source = Gst.ElementFactory.make("filesrc", "source")
-    decodebin = Gst.ElementFactory.make("decodebin", "decodebin")
-    audioconvert = Gst.ElementFactory.make("audioconvert", "audioconvert")
-    audioresample = Gst.ElementFactory.make("audioresample", "audioresample")
-    pitch = Gst.ElementFactory.make("pitch", "pitch")
-    equalizer = Gst.ElementFactory.make("equalizer-10bands", "equalizer")
-    volume = Gst.ElementFactory.make("volume", "volume")
-    sink = Gst.ElementFactory.make("autoaudiosink", "sink")
-
-    pipeline.add(source)
-    pipeline.add(decodebin)
-    pipeline.add(audioconvert)
-    pipeline.add(audioresample)
-    pipeline.add(pitch)
-    pipeline.add(equalizer)
-    pipeline.add(volume)
-    pipeline.add(sink)
-
-    source.link(decodebin)
-    decodebin.connect("pad-added", lambda dbin, pad: pad.link(audioconvert.get_static_pad("sink")))
-    audioconvert.link(audioresample)
-    audioresample.link(pitch)
-    pitch.link(equalizer)
-    equalizer.link(volume)
-    volume.link(sink)
-
-    source.set_property("location", sound_file)
-    return pipeline, pitch, equalizer, volume
-
-# Load visuals
+# Load visuals and sounds
 def load_visuals():
     visuals_dir = "multi_person_visuals"
+    sounds_dir = "sounds"
     if os.path.exists(visuals_dir):
         for file in os.listdir(visuals_dir):
             if file.endswith(".py"):
-                module_name = file[:-3]
+                module_name = file[:-3]  # Remove .py
                 module_path = os.path.join(visuals_dir, file)
                 spec = importlib.util.spec_from_file_location(module_name, module_path)
                 module = importlib.util.module_from_spec(spec)
@@ -100,13 +73,44 @@ def load_visuals():
                     visuals.append(visual_instance)
                     base_name = module_name.replace("Visual", "").replace("_", " ").strip()
                     visual_names.append(base_name.title())
+                    sound_file = os.path.join(sounds_dir, module_name + ".wav")
+                    if os.path.exists(sound_file):
+                        # Select pitch factor > 1 for higher pitch, < 1 for lower pitch
+                        pitch_factor = 1.5
+
+                        sound = pygame.mixer.Sound(sound_file)
+                        sound_array = pygame.sndarray.array(sound)
+                        sound_array = change_pitch(sound_array, pitch_factor)
+                        sound = pygame.sndarray.make_sound(sound_array)
+                       # sound = AudioSegment.from_file(sound_file)
+                       # sound = change_pitch_pydub(sound, pitch_factor)
+                       # sound = pygame.mixer.Sound(sound_file)
+                    else:
+                        sound = None
+                    sounds.append(sound)
+
+# Change Pitch option 1
+def change_pitch(sound_array, pitch_factor):
+    len_new = int(len(sound_array) / pitch_factor)
+    new_sound_array = np.interp(
+            np.linspace(0, len(sound_array), len_new),
+            np.arange(len(sound_array)),
+            sound_array
+            ).astype(sound_array.dtype)
+    return new_sound_array
+
+# Change Pitch option 2 (probably not possible because pydub vs pygame but it's whatever)
+def change_pitch_pydub(sound, pitch_factor):
+    new_sound = sound._spawn(sound.raw_data, overrides={
+        "frame_rate": int(sound.frame_rate * pitch_factor)
+        }).set_frame_rate(sound.frame_rate)
+    return new_sound
 
 # Drawing Helpers
 def draw_motion_trails(user_data, screen):
     screen.fill(BACKGROUND_COLOR)
-    for person_id, trails in person_trails.items():
-        draw_trail(screen, trails.get('left_wrist', []), LEFT_TRAIL_COLOR)
-        draw_trail(screen, trails.get('right_wrist', []), RIGHT_TRAIL_COLOR)
+    draw_trail(screen, left_wrist_trail, LEFT_TRAIL_COLOR)
+    draw_trail(screen, right_wrist_trail, RIGHT_TRAIL_COLOR)
 
 def draw_trail(screen, trail, color):
     if len(trail) < 2:
@@ -141,11 +145,11 @@ def draw_keypoints_and_bbox(user_data, screen):
             if detection.get_label() == "person" and detection.get_confidence() >= confidence_threshold:
                 bbox = detection.get_bbox()
                 x1, y1, x2, y2 = (
-                    int(bbox.xmin() * SCREEN_WIDTH),
-                    int(bbox.ymin() * SCREEN_HEIGHT),
-                    int(bbox.xmax() * SCREEN_WIDTH),
-                    int(bbox.ymax() * SCREEN_HEIGHT),
-                )
+                        int(bbox.xmin() * SCREEN_WIDTH),
+                        int(bbox.ymin() * SCREEN_HEIGHT),
+                        int(bbox.xmax() * SCREEN_WIDTH),
+                        int(bbox.ymax() * SCREEN_HEIGHT),
+                        )
                 pygame.draw.rect(screen, BBOX_COLOR, (x1, y1, x2 - x1, y2 - y1), 2)
 
                 if show_keypoints:
@@ -173,19 +177,22 @@ def draw_split_screen(user_data, screen):
             if detection.get_label() == "person" and detection.get_confidence() >= confidence_threshold:
                 bbox = detection.get_bbox()
                 x1, y1, x2, y2 = (
-                    HALF_SCREEN_WIDTH + int(bbox.xmin() * HALF_SCREEN_WIDTH),
-                    int(bbox.ymin() * SCREEN_HEIGHT),
-                    HALF_SCREEN_WIDTH + int(bbox.xmax() * HALF_SCREEN_WIDTH),
-                    int(bbox.ymax() * SCREEN_HEIGHT),
-                )
+                        HALF_SCREEN_WIDTH + int(bbox.xmin() * HALF_SCREEN_WIDTH),
+                        int(bbox.ymin() * SCREEN_HEIGHT),
+                        HALF_SCREEN_WIDTH + int(bbox.xmax() * HALF_SCREEN_WIDTH),
+                        int(bbox.ymax() * SCREEN_HEIGHT),
+                        )
                 pygame.draw.rect(screen, BBOX_COLOR, (x1, y1, x2 - x1, y2 - y1), 2)
 
-def get_person_count(user_data):
-    return sum(1 for detection in user_data.detections if detection.get_label() == "person" and detection.get_confidence() >= confidence_threshold)
+def is_person_detected(user_data):
+    for detection in user_data.detections:
+        if detection.get_label() == "person" and detection.get_confidence() >= confidence_threshold:
+            return True
+    return False
 
 # GStreamer Callback
 def app_callback(pad, info, user_data):
-    global person_trails
+    global left_wrist_trail, right_wrist_trail
     buffer = info.get_buffer()
     if buffer is None:
         return Gst.PadProbeReturn.OK
@@ -201,27 +208,17 @@ def app_callback(pad, info, user_data):
 
     roi = hailo.get_roi_from_buffer(buffer)
     detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
-    person_trails.clear()  # Reset trails each frame
 
-    for idx, detection in enumerate(detections):
+    for detection in detections:
         if detection.get_label() == "person" and detection.get_confidence() >= confidence_threshold:
-            person_id = f"person_{idx}"
-            person_trails[person_id] = person_trails.get(person_id, {})
             landmarks = detection.get_objects_typed(hailo.HAILO_LANDMARKS)
             if landmarks:
                 points = landmarks[0].get_points()
-                # Keypoint indices: 9 = left wrist, 10 = right wrist, 7 = left elbow, 8 = right elbow
-                keypoints = {
-                    'left_wrist': points[9] if len(points) > 9 else None,
-                    'right_wrist': points[10] if len(points) > 10 else None,
-                    'left_elbow': points[7] if len(points) > 7 else None,
-                    'right_elbow': points[8] if len(points) > 8 else None,
-                }
-                for key, point in keypoints.items():
-                    if point:
-                        trail = person_trails[person_id].get(key, [])
-                        update_trail(trail, (point.x(), point.y()))
-                        person_trails[person_id][key] = trail
+                left_wrist = points[9]
+                right_wrist = points[10]
+                update_trail(left_wrist_trail, (left_wrist.x(), left_wrist.y()))
+                update_trail(right_wrist_trail, (right_wrist.x(), right_wrist.y()))
+            break
 
     user_data.set_detections(detections)
     return Gst.PadProbeReturn.OK
@@ -237,9 +234,8 @@ class MotionTrailsVisual:
 
 # Main Visualization Loop
 def run_visualization(user_data):
-    global screen_state, current_visual_index, show_keypoints, is_fullscreen, screen, SCREEN_WIDTH, SCREEN_HEIGHT, HALF_SCREEN_WIDTH, tutorial_sound_enabled
+    global screen_state, current_visual_index, show_keypoints, current_sound, is_fullscreen, screen, SCREEN_WIDTH, SCREEN_HEIGHT, HALF_SCREEN_WIDTH, tutorial_sound_enabled
     running = True
-    current_sound_file = None
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
@@ -275,61 +271,20 @@ def run_visualization(user_data):
                         tutorial_sound_enabled = not tutorial_sound_enabled
 
         # Manage audio playback
-        person_count = get_person_count(user_data)
-        if screen_state in [0, 1] and person_count > 0:
+        if screen_state in [0, 1] and is_person_detected(user_data):
             if current_visual_index == 0 and not tutorial_sound_enabled:
-                new_sound_file = None
+                new_sound = None
             else:
-                sound_file = f"sounds/{visual_names[current_visual_index].replace(' ', '_').lower()}.wav"
-                if os.path.exists(sound_file):
-                    new_sound_file = sound_file
-                else:
-                    new_sound_file = None
+                new_sound = sounds[current_visual_index] if current_visual_index < len(sounds) else None
         else:
-            new_sound_file = None
+            new_sound = None
 
-        if new_sound_file != current_sound_file:
-            if new_sound_file:
-                audio_pipelines.clear()
-                for person_id in person_trails.keys():
-                    for keypoint in ['left_elbow', 'right_elbow', 'left_wrist']:
-                        pipeline_key = f"{person_id}_{keypoint}_{new_sound_file}"
-                        pipeline, pitch, equalizer, volume = create_audio_pipeline(new_sound_file)
-                        audio_pipelines[pipeline_key] = (pipeline, pitch, equalizer, volume)
-                        pipeline.set_state(Gst.State.PLAYING)
-            else:
-                for pipeline in audio_pipelines.values():
-                    pipeline[0].set_state(Gst.State.NULL)
-                audio_pipelines.clear()
-            current_sound_file = new_sound_file
-
-        # Apply audio effects based on person count and movement
-        if person_count > 0 and current_sound_file:
-            for person_id, trails in person_trails.items():
-                # AccelerationGlowVisual - Single manipulation per person
-                if visual_names[current_visual_index] == "Acceleration Glow":
-                    pipeline_key = f"{person_id}_left_wrist_{current_sound_file}"
-                    if pipeline_key in audio_pipelines:
-                        pipeline, pitch, equalizer, volume = audio_pipelines[pipeline_key]
-                        trail = trails.get('left_wrist', [])
-                        if len(trail) > 1:
-                            speed = calculate_speed(trail[-2], trail[-1])
-                            pitch.set_property("pitch", max(0.5, min(2.0, 1.0 + speed / 100.0)))
-                            volume.set_property("volume", min(1.0, 0.5 + person_count * 0.1))
-
-                # ElbowTrailsVisual - Separate manipulations for each elbow
-                elif visual_names[current_visual_index] == "Elbow Trails":
-                    for side, keypoint in [('left', 'left_elbow'), ('right', 'right_elbow')]:
-                        pipeline_key = f"{person_id}_{keypoint}_{current_sound_file}"
-                        if pipeline_key in audio_pipelines:
-                            pipeline, pitch, equalizer, volume = audio_pipelines[pipeline_key]
-                            trail = trails.get(keypoint, [])
-                            if len(trail) > 1:
-                                speed = calculate_speed(trail[-2], trail[-1])
-                                pitch_shift = 1.0 + speed / 100.0 if side == 'left' else 1.0 + speed / 50.0
-                                pitch.set_property("pitch", max(0.5, min(2.0, pitch_shift)))
-                                # Panning simulation via volume
-                                volume.set_property("volume", min(1.0, 0.5 + speed / 100.0))
+        if new_sound != current_sound:
+            if current_sound:
+                current_sound.stop()
+            current_sound = new_sound
+            if current_sound:
+                current_sound.play(loops=-1)
 
         # Visualization
         try:
@@ -351,13 +306,10 @@ def run_visualization(user_data):
         except Exception as e:
             print(f"Error in visualization: {e}")
 
-    for pipeline in audio_pipelines.values():
-        pipeline[0].set_state(Gst.State.NULL)
+    if current_sound:
+        current_sound.stop()
     pygame.quit()
     os._exit(0)
-
-def calculate_speed(prev_pos, current_pos):
-    return ((current_pos[0] - prev_pos[0]) ** 2 + (current_pos[1] - prev_pos[1]) ** 2) ** 0.5
 
 class user_app_callback_class(app_callback_class):
     def __init__(self):
@@ -374,9 +326,21 @@ class user_app_callback_class(app_callback_class):
 if __name__ == "__main__":
     visuals.insert(0, MotionTrailsVisual())
     visual_names.insert(0, "Motion Trails")
+    welcome_sound_path = "welcome.wav"
+    if os.path.exists(welcome_sound_path):
+        welcome_sound = pygame.mixer.Sound(welcome_sound_path)
+        welcome_sound.play()
+        print("Playing welcome.wav")
+        sounds.insert(0, welcome_sound)
+    else:
+        print("welcome.wav not found in current directory")
+        sounds.insert(0, None)
+
     load_visuals()
     user_data = user_app_callback_class()
     app = GStreamerPoseEstimationApp(app_callback, user_data)
     gst_thread = threading.Thread(target=app.run, daemon=True)
     gst_thread.start()
     run_visualization(user_data)
+
+    ### End of AV_2.py ###

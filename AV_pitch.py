@@ -10,8 +10,6 @@ import hailo
 import threading
 import cv2
 import importlib.util
-from pydub import AudioSegment
-from pydub.playback import play
 
 from hailo_apps_infra.hailo_rpi_common import (
         get_caps_from_pad,
@@ -77,20 +75,19 @@ def load_visuals():
                     visual_names.append(base_name.title())
                     sound_file = os.path.join(sounds_dir, module_name + ".wav")
                     if os.path.exists(sound_file):
-                        pitch_option = 1
                         # Select pitch factor > 1 for higher pitch, < 1 for lower pitch
                         pitch_factor = 1.5
 
-                        if pitch_option == 1:
-                            sound = pygame.mixer.Sound(sound_file)
-                            sound_array = pygame.sndarray.array(sound)
-                            sound_array = change_pitch(sound_array, pitch_factor)
-                            sound = pygame.sndarray.make_sound(sound_array)
-                        else if pitch_option == 2:
-                            sound = AudioSegment.from_file(sound_file)
-                            sound = change_pitch_pydub(sound, pitch_factor)
-                        else:
-                            sound = pygame.mixer.Sound(sound_file)
+                        sound = pygame.mixer.Sound(sound_file)
+                        sound_array = pygame.sndarray.array(sound)
+                        print("Sound Array Shape: ", sound_array.shape)
+                        sound_array = sound_array.flatten()
+                        print("New Sound Array Shape: ", sound_array.shape)
+                        sound_array = change_pitch(sound_array, pitch_factor)
+                        sound = pygame.sndarray.make_sound(sound_array)
+                       # sound = AudioSegment.from_file(sound_file)
+                       # sound = change_pitch_pydub(sound, pitch_factor)
+                       # sound = pygame.mixer.Sound(sound_file)
                     else:
                         sound = None
                     sounds.append(sound)
@@ -98,11 +95,14 @@ def load_visuals():
 # Change Pitch option 1
 def change_pitch(sound_array, pitch_factor):
     len_new = int(len(sound_array) / pitch_factor)
+    print(len_new)
+    print(len(sound_array))
     new_sound_array = np.interp(
             np.linspace(0, len(sound_array), len_new),
             np.arange(len(sound_array)),
             sound_array
             ).astype(sound_array.dtype)
+    new_sound_array = new_sound_array.reshape(int(len_new / 2), 2)
     return new_sound_array
 
 # Change Pitch option 2 (probably not possible because pydub vs pygame but it's whatever)

@@ -1,0 +1,94 @@
+🔊 FFmpeg Audio Manipulation Reference
+
+FFmpeg is a versatile tool for audio processing, making it ideal for Raspberry Pi applications like pose estimation with real-time audio feedback. Below are practical audio manipulation commands you can use or script into your pipeline.
+
+──────────────────────────────────────────────
+1. 🎵 Extract Audio from Video
+Extract the audio track only:
+ffmpeg -i input.mp4 -q:a 0 -map a output.mp3
+
+──────────────────────────────────────────────
+2. 🔊 Change Audio Volume
+Double the volume:
+ffmpeg -i input.wav -filter:a "volume=2.0" output.wav
+
+Reduce volume by half:
+ffmpeg -i input.wav -filter:a "volume=0.5" output.wav
+
+──────────────────────────────────────────────
+3. 🔁 Loop an Audio File
+Play the audio 5 times:
+ffmpeg -stream_loop 4 -i input.wav -c copy output.wav
+
+──────────────────────────────────────────────
+4. ⏱️ Trim/Cut Audio
+Extract a 10-second clip (from 10s to 20s):
+ffmpeg -i input.wav -ss 00:00:10 -to 00:00:20 -c copy output_trimmed.wav
+
+──────────────────────────────────────────────
+5. 🛠️ Merge Audio and Video
+Replace the video's original audio:
+ffmpeg -i video.mp4 -i new_audio.wav -c:v copy -map 0:v:0 -map 1:a:0 -shortest output.mp4
+
+──────────────────────────────────────────────
+6. 🎚️ Creative Audio Filters
+
+🎛️ Bass Boost:
+ffmpeg -i input.wav -af "bass=g=10" output.wav
+
+🎛️ Treble Boost:
+ffmpeg -i input.wav -af "treble=g=8" output.wav
+
+🎛️ Equalizer (custom freq & gain):
+ffmpeg -i input.wav -af "equalizer=f=1000:t=q:w=1:g=5" output.wav
+- f: frequency (Hz)
+- g: gain (dB)
+
+🎛️ Echo:
+ffmpeg -i input.wav -af "aecho=0.8:0.9:1000:0.3" output.wav
+
+🎛️ Reverb (with preset impulse response):
+ffmpeg -i input.wav -af "afir=gtype=gn" output.wav
+
+🎛️ Speed Up (2x):
+ffmpeg -i input.wav -filter:a "atempo=2.0" output.wav
+
+🎛️ Slow Down (0.75x):
+ffmpeg -i input.wav -filter:a "atempo=0.75" output.wav
+
+🔄 Combine filters (e.g. echo + bass):
+ffmpeg -i input.wav -af "aecho=0.8:0.9:1000:0.3,bass=g=10" output.wav
+
+──────────────────────────────────────────────
+7. 🧩 Python Integration (Optional)
+
+Call FFmpeg commands inside Python using subprocess:
+
+import subprocess
+
+def boost_bass(input_path, output_path, gain_db=10):
+    subprocess.run([
+        'ffmpeg', '-i', input_path,
+        '-af', f"bass=g={gain_db}",
+        output_path
+    ])
+
+def trim_audio(input_path, output_path, start_sec, duration_sec):
+    subprocess.run([
+        'ffmpeg', '-ss', str(start_sec), '-t', str(duration_sec),
+        '-i', input_path, '-c', 'copy', output_path
+    ])
+
+──────────────────────────────────────────────
+8. 🎮 Project Use Case Ideas
+
+- 🔊 Normalize sound effects for different environments.
+- 🎧 Add reverb or bass for a more immersive experience.
+- 🔁 Seamlessly loop short audio clips.
+- 🧠 Match audio tone (e.g., treble for fast gestures, bass for slow power moves).
+- ✂️ Trim long audio clips to fit visual events.
+
+FFmpeg gives you full control over the sonic layer of your visualization. Pair it with real-time pose analysis for an engaging, sensory-rich experience!
+
+
+

@@ -1,0 +1,89 @@
+Overview
+────────
+This system is a fully integrated real-time audio-visual interactive prototype designed for motion-tracked artistic performances. It uses pose estimation from a Hailo-8L-equipped Raspberry Pi 5, GStreamer for audio streaming, and Pygame for visual rendering. Each visual effect corresponds to a unique sound layer that adapts dynamically to the number of detected individuals.
+
+────────────────────────────────────────────
+1. Core Script: FINAL.py
+────────────────────────────────────────────
+This is the primary execution pipeline that:
+- Initializes GStreamer and Pygame.
+- Loads real-time camera-based pose detection using GStreamerPoseEstimationApp.
+- Dynamically switches between:
+  - Visual-only mode,
+  - Split-screen (visual + camera feed),
+  - Raw keypoints display.
+
+Keybindings (Live Controls):
+- RIGHT/LEFT arrows: Cycle display modes (Visual, Split, Frame+KP).
+- UP/DOWN arrows: Switch between different visual modules.
+- K: Toggle keypoint overlays (only in Frame+KP mode).
+- P: Toggle fullscreen ↔ windowed mode.
+- T: Enable/disable tutorial mode (only for Motion Trails).
+- Q: Quit immediately.
+
+────────────────────────────────────────────
+2. Audio Subsystem
+────────────────────────────────────────────
+Normalized Sound Directory: normalized_sounds/
+- All audio files are normalized to -23 LUFS for consistent loudness.
+- Audio pipeline is created per detected person using GStreamer.
+- Pipeline elements: filesrc → decodebin → audioconvert → audioresample → pitch → audiopanorama → equalizer-10bands → volume → autoaudiosink.
+
+Audio behaviors per visual:
+- Feet Heatmap: EQ band emphasis per person index.
+- Hip Circles: Volume scaling by number of people.
+- Skeleton: Pitch shift based on index.
+- Pan (left/right) based on horizontal position of each person.
+
+Pipelines dynamically start/stop and resume mid-playback on visual or detection change.
+
+────────────────────────────────────────────
+3. Visual Modules: multi_person_visuals/
+────────────────────────────────────────────
+Each visual is defined as a class named VisualClass with a `visualize(user_data, surface)` method.
+Visuals respond to tracked persons and render in real time using Pygame.
+
+Included modules:
+- AccelerationGlowVisual: Dynamic wrist trails with speed-based alpha.
+- ElbowTrailsVisual: Twin elbow trail lines per person.
+- FeetHeatmapVisual: Historical foot positions rendered as fading heatmaps.
+- HipCirclesVisual: Pulsating hip-centered rings.
+- MotionTrailsMultipleVisual: Left + right wrist trails per tracked person.
+- SkeletonVisual: Stick-figure skeletal drawing.
+- SpineLineVisual: Single line from neck to hip center.
+
+Each visual corresponds 1:1 with a .wav file in normalized_sounds/.
+
+────────────────────────────────────────────
+4. Startup Behavior
+────────────────────────────────────────────
+- System plays welcome.wav at startup to confirm initialization.
+- "Motion Trails" (tutorial mode) defaults to audio ON.
+
+────────────────────────────────────────────
+5. System Logic & Adaptation
+────────────────────────────────────────────
+- Each frame triggers updated detection, tracking, and pose estimation.
+- Visual and audio systems operate independently but synchronously.
+- Detected persons are identified and tracked using Hailo unique IDs or fallback.
+- Pipelines are assigned or reused per tracking ID and visual context.
+- When person count changes, sound streams update without interruption.
+
+────────────────────────────────────────────
+6. Modularity
+────────────────────────────────────────────
+- To add a new visual:
+  → Place a .py file in multi_person_visuals/ with a VisualClass.
+  → Add a normalized .wav file with the same base name to normalized_sounds/.
+- Audio and visuals automatically bind through naming convention.
+  E.g., HipCirclesVisual.py ↔ HipCirclesVisual.wav
+
+────────────────────────────────────────────
+7. Design Purpose
+────────────────────────────────────────────
+This prototype enables expressive, generative, and immersive performances where visuals and sound are driven by human motion. It’s engineered to:
+- React live,
+- Support multi-person interactivity,
+- Maintain synchronized feedback,
+- Run on edge hardware without external compute.
+

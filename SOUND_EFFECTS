@@ -1,0 +1,25 @@
+Sound Manipulation for Each Visual in INTEGRATED:
+
+- Acceleration Glow:
+  - Pitch varies with the speed of the left wrist's movement.
+  - Volume increases as more people are detected (louder with more people).
+  - Panning based on the person's horizontal position in the frame (left or right).
+
+- Elbow Trails:
+  - Pitch and volume adjust based on the speed of each elbow's movement (left and right elbows have distinct adjustments).
+  - Panning based on the person's horizontal position.
+
+- Feet Heatmap:
+  - Bass frequencies are boosted for each new person (e.g., +6 dB per person for low-frequency bands).
+  - Panning based on the person's position.
+
+- Hip Circles:
+  - Loudness increases for each new person (e.g., volume increases by 0.2 per person, up to 1.0).
+  - Panning based on the person's position.
+
+- Skeleton:
+  - Pitch increases for each new person (e.g., +5% pitch shift per person).
+  - Panning based on the person's position.
+
+- Spine Line:
+  - Panning based on the person's horizontal position in the frame (no other changes).
