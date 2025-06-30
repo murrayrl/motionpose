@@ -1,4 +1,4 @@
-# Fixing the f-string issue in the previous response
+# Fixing the f-string issue in the previous response 
 video_path = "sample_video.mp4"  # Placeholder, should be replaced with actual path
 
 fixed_video_path = video_path.replace('"', '\\"')
