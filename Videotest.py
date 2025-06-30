@@ -1,9 +1,4 @@
-# Fixing the f-string issue in the previous response 
-video_path = "sample_video.mp4"  # Placeholder, should be replaced with actual path
-
-fixed_video_path = video_path.replace('"', '\\"')
-
-file_content = f"""#!/usr/bin/env python3
+#!/usr/bin/env python3
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GObject
@@ -35,13 +30,15 @@ cur_vis = 0
 mode = 1
 tutorial_sound_on = True
 
-def draw_trails(surf, trails:dict):
+# ────────── draw helpers ──────────
+def draw_trails(surf, trails: dict):
     surf.fill(BG)
-    w,h = surf.get_size()
+    w, h = surf.get_size()
     for kpmap in trails.values():
         for key, col in (("left_wrist", LEFT_CLR), ("right_wrist", RIGHT_CLR)):
             seq = kpmap.get(key, [])
-            if len(seq) < 2: continue
+            if len(seq) < 2:
+                continue
             pts = [(int(x * w), int(y * h)) for x, y in seq]
             pygame.draw.lines(surf, col, False, pts, 5)
 
@@ -57,6 +54,7 @@ def split_screen(ud):
 def txt(t, x=20, y=20):
     screen.blit(font.render(t, True, TXT), (x, y))
 
+# ────────── gst callback ──────────
 def gst_cb(pad, info, ud):
     buf = info.get_buffer()
     ud.increment()
@@ -67,23 +65,29 @@ def gst_cb(pad, info, ud):
     dets = roi.get_objects_typed(hailo.HAILO_DETECTION)
     seen = set()
     for i, d in enumerate(dets):
-        if d.get_label() != "person" or d.get_confidence() < CONF_THR: continue
-        pid = f"person_{{i}}"
+        if d.get_label() != "person" or d.get_confidence() < CONF_THR:
+            continue
+        pid = f"person_{i}"
         seen.add(pid)
-        trailmap = ud.person_trails.setdefault(pid, {{}})
+        trailmap = ud.person_trails.setdefault(pid, {})
         lms = d.get_objects_typed(hailo.HAILO_LANDMARKS)
-        if not lms: continue
+        if not lms:
+            continue
         pts = lms[0].get_points()
         for idx, label in ((9, "left_wrist"), (10, "right_wrist")):
-            if idx >= len(pts): continue
+            if idx >= len(pts):
+                continue
             seq = trailmap.setdefault(label, [])
             seq.append((pts[idx].x(), pts[idx].y()))
-            if len(seq) > TRAIL_LEN: seq.pop(0)
+            if len(seq) > TRAIL_LEN:
+                seq.pop(0)
     for pid in list(ud.person_trails):
-        if pid not in seen: del ud.person_trails[pid]
+        if pid not in seen:
+            del ud.person_trails[pid]
     ud.set_detections(dets)
     return Gst.PadProbeReturn.OK
 
+# ────────── main loop ──────────
 def loop(ud):
     global cur_vis, mode, is_fullscreen, SCREEN_W, SCREEN_H, HALF_W
     show_kp = True
@@ -109,9 +113,10 @@ def loop(ud):
     pygame.quit()
     os._exit(0)
 
+# ────────── video file runner ──────────
 def run_pipeline_from_file(video_path, callback, ud):
     pipeline_desc = f'''
-        filesrc location="{fixed_video_path}" !
+        filesrc location="{video_path}" !
         decodebin !
         videoconvert !
         video/x-raw,format=RGB !
@@ -136,18 +141,22 @@ def run_pipeline_from_file(video_path, callback, ud):
     bus = pipeline.get_bus()
     while True:
         msg = bus.timed_pop_filtered(Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR)
-        if msg: break
+        if msg:
+            break
     pipeline.set_state(Gst.State.NULL)
 
+# ────────── user data ──────────
 class UD(app_callback_class):
     def __init__(self):
         super().__init__()
         self.frame = None
         self.detections = []
-        self.person_trails = {{}}
+        self.person_trails = {}
+
     def set_frame(self, f): self.frame = f
     def set_detections(self, d): self.detections = d
 
+# ────────── visuals loader ──────────
 def load_visuals():
     d = "multi_person_visuals"
     if not os.path.isdir(d): return
@@ -162,19 +171,15 @@ def load_visuals():
             visual_names.append(modname.replace("Visual", ""))
 
 class MotionTrails:
-    def visualize(self, ud, surf): draw_trails(surf, ud.person_trails)
+    def visualize(self, ud, surf):
+        draw_trails(surf, ud.person_trails)
 
+# ────────── main ──────────
 if __name__ == "__main__":
+    video_path = "sample_video.mp4"  # Replace with your actual video file path
     visuals.append(MotionTrails())
     visual_names.append("Motion Trails")
     load_visuals()
     ud = UD()
-    threading.Thread(target=run_pipeline_from_file, args=("{fixed_video_path}", gst_cb, ud), daemon=True).start()
+    threading.Thread(target=run_pipeline_from_file, args=(video_path, gst_cb, ud), daemon=True).start()
     loop(ud)
-"""
-
-file_path = "/mnt/data/pose_visualizer_from_video.py"
-with open(file_path, "w") as f:
-    f.write(file_content)
-
-file_path
