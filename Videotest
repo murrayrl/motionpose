@@ -1,0 +1,180 @@
+# Fixing the f-string issue in the previous response
+video_path = "sample_video.mp4"  # Placeholder, should be replaced with actual path
+
+fixed_video_path = video_path.replace('"', '\\"')
+
+file_content = f"""#!/usr/bin/env python3
+import gi
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst, GObject
+import os, threading, importlib.util, cv2, numpy as np, pygame, hailo
+from hailo_apps_infra.hailo_rpi_common import (
+    get_caps_from_pad, get_numpy_from_buffer, app_callback_class
+)
+
+# ────────── init ──────────
+Gst.init(None)
+pygame.init()
+pygame.mixer.quit()
+is_fullscreen = True
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+SCREEN_W, SCREEN_H = screen.get_size()
+HALF_W = SCREEN_W // 2
+clock = pygame.time.Clock()
+font = pygame.font.Font(None, 36)
+
+# ────────── constants ──────────
+BG, TXT = (0, 0, 0), (255, 255, 0)
+LEFT_CLR, RIGHT_CLR = (0, 255, 0), (0, 0, 255)
+BBOX_CLR = (255, 255, 0)
+CONF_THR = 0.5
+TRAIL_LEN = 30
+
+visuals, visual_names = [], []
+cur_vis = 0
+mode = 1
+tutorial_sound_on = True
+
+def draw_trails(surf, trails:dict):
+    surf.fill(BG)
+    w,h = surf.get_size()
+    for kpmap in trails.values():
+        for key, col in (("left_wrist", LEFT_CLR), ("right_wrist", RIGHT_CLR)):
+            seq = kpmap.get(key, [])
+            if len(seq) < 2: continue
+            pts = [(int(x * w), int(y * h)) for x, y in seq]
+            pygame.draw.lines(surf, col, False, pts, 5)
+
+def split_screen(ud):
+    screen.fill(BG)
+    left = screen.subsurface((0, 0, HALF_W, SCREEN_H))
+    left.fill(BG)
+    visuals[cur_vis].visualize(ud, left)
+    if ud.frame is not None:
+        frm = cv2.flip(cv2.resize(ud.frame, (HALF_W, SCREEN_H)), 1)
+        screen.blit(pygame.surfarray.make_surface(np.rot90(frm)), (HALF_W, 0))
+
+def txt(t, x=20, y=20):
+    screen.blit(font.render(t, True, TXT), (x, y))
+
+def gst_cb(pad, info, ud):
+    buf = info.get_buffer()
+    ud.increment()
+    fmt, w, h = get_caps_from_pad(pad)
+    if fmt and w and h:
+        ud.set_frame(cv2.cvtColor(get_numpy_from_buffer(buf, fmt, w, h), cv2.COLOR_RGB2BGR))
+    roi = hailo.get_roi_from_buffer(buf)
+    dets = roi.get_objects_typed(hailo.HAILO_DETECTION)
+    seen = set()
+    for i, d in enumerate(dets):
+        if d.get_label() != "person" or d.get_confidence() < CONF_THR: continue
+        pid = f"person_{{i}}"
+        seen.add(pid)
+        trailmap = ud.person_trails.setdefault(pid, {{}})
+        lms = d.get_objects_typed(hailo.HAILO_LANDMARKS)
+        if not lms: continue
+        pts = lms[0].get_points()
+        for idx, label in ((9, "left_wrist"), (10, "right_wrist")):
+            if idx >= len(pts): continue
+            seq = trailmap.setdefault(label, [])
+            seq.append((pts[idx].x(), pts[idx].y()))
+            if len(seq) > TRAIL_LEN: seq.pop(0)
+    for pid in list(ud.person_trails):
+        if pid not in seen: del ud.person_trails[pid]
+    ud.set_detections(dets)
+    return Gst.PadProbeReturn.OK
+
+def loop(ud):
+    global cur_vis, mode, is_fullscreen, SCREEN_W, SCREEN_H, HALF_W
+    show_kp = True
+    running = True
+    while running:
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_q):
+                running = False
+        if mode == 0:
+            screen.fill(BG)
+            visuals[cur_vis].visualize(ud, screen)
+            txt(visual_names[cur_vis])
+        elif mode == 1:
+            split_screen(ud)
+            txt(visual_names[cur_vis])
+        else:
+            screen.fill(BG)
+            if ud.frame is not None:
+                frm = cv2.flip(cv2.resize(ud.frame, (SCREEN_W, SCREEN_H)), 1)
+                screen.blit(pygame.surfarray.make_surface(np.rot90(frm)), (0, 0))
+        pygame.display.flip()
+        clock.tick(30)
+    pygame.quit()
+    os._exit(0)
+
+def run_pipeline_from_file(video_path, callback, ud):
+    pipeline_desc = f'''
+        filesrc location="{fixed_video_path}" !
+        decodebin !
+        videoconvert !
+        video/x-raw,format=RGB !
+        queue !
+        hailonet name=hnet !
+        appsink name=sink sync=false max-buffers=1 drop=true emit-signals=true
+    '''
+    pipeline = Gst.parse_launch(pipeline_desc)
+    sink = pipeline.get_by_name("sink")
+
+    def on_new_sample(sink, data):
+        sample = sink.emit("pull-sample")
+        if sample:
+            buffer = sample.get_buffer()
+            pad = sink.get_static_pad("sink")
+            info = Gst.PadProbeInfo()
+            callback(pad, info, data)
+        return Gst.FlowReturn.OK
+
+    sink.connect("new-sample", on_new_sample, ud)
+    pipeline.set_state(Gst.State.PLAYING)
+    bus = pipeline.get_bus()
+    while True:
+        msg = bus.timed_pop_filtered(Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR)
+        if msg: break
+    pipeline.set_state(Gst.State.NULL)
+
+class UD(app_callback_class):
+    def __init__(self):
+        super().__init__()
+        self.frame = None
+        self.detections = []
+        self.person_trails = {{}}
+    def set_frame(self, f): self.frame = f
+    def set_detections(self, d): self.detections = d
+
+def load_visuals():
+    d = "multi_person_visuals"
+    if not os.path.isdir(d): return
+    for f in os.listdir(d):
+        if not f.endswith(".py"): continue
+        modname = f[:-3]
+        spec = importlib.util.spec_from_file_location(modname, os.path.join(d, f))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        if hasattr(m, "VisualClass"):
+            visuals.append(m.VisualClass())
+            visual_names.append(modname.replace("Visual", ""))
+
+class MotionTrails:
+    def visualize(self, ud, surf): draw_trails(surf, ud.person_trails)
+
+if __name__ == "__main__":
+    visuals.append(MotionTrails())
+    visual_names.append("Motion Trails")
+    load_visuals()
+    ud = UD()
+    threading.Thread(target=run_pipeline_from_file, args=("{fixed_video_path}", gst_cb, ud), daemon=True).start()
+    loop(ud)
+"""
+
+file_path = "/mnt/data/pose_visualizer_from_video.py"
+with open(file_path, "w") as f:
+    f.write(file_content)
+
+file_path
