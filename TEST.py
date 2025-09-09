@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # INTEGRATED.py – enhanced multi-person audio-visual pose streamer
 # ───────────────────────────────────────────────────────────────────
+import sys
+sys.path.append("/home/mlm/JG_POSE/hailo-apps-infra")
+
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst
@@ -130,10 +133,13 @@ def load_visuals():
     vdir = "multi_person_visuals"
     if not os.path.isdir(vdir):
         return
+    skip = {"AccelerationGlowVisual", "HipCirclesVisual"}
     for f in os.listdir(vdir):
         if not f.endswith(".py"):
             continue
         mod_name = f[:-3]
+        if mod_name in skip:
+            continue
         spec = importlib.util.spec_from_file_location(mod_name,
                                                       os.path.join(vdir, f))
         module = importlib.util.module_from_spec(spec)
@@ -160,7 +166,7 @@ def draw_motion_trails(surface):
         draw_trail(surface, trails.get("right_wrist", []), RIGHT_TRAIL_COLOR)
 
 def display_visual_name(name, default=False):
-    if default: name += " – Single Person"
+ #   if default: name += " – Single Person"
     txt = font.render(name, True, TEXT_COLOR)
     screen.blit(txt, (20, 20))
 
@@ -306,8 +312,8 @@ def run_visualization(user_data):
                     if visual_names[current_visual_index] == "Feet Heatmap":
                         eq.set_property("band0", 6.0 * idx)
                         eq.set_property("band1", 6.0 * idx)
-                    elif visual_names[current_visual_index] == "Hip Circles":
-                        vol.set_property("volume", min(1.0, 0.5 + 0.2 * idx))
+    #                elif visual_names[current_visual_index] == "Hip Circles":
+     #                   vol.set_property("volume", min(1.0, 0.5 + 0.2 * idx))
                     elif visual_names[current_visual_index] == "Skeleton":
                         pitch.set_property("pitch", 1.0 + 0.05 * idx)
 
@@ -318,15 +324,15 @@ def run_visualization(user_data):
         def kp_speed(t):
             return math.hypot(t[-1][0] - t[-2][0], t[-1][1] - t[-2][1])
 
-        if current_sound and person_trails:
-            for pid, trails in person_trails.items():
-                if visual_names[current_visual_index] == "Acceleration Glow":
-                    key = f"{pid}_{current_sound}"
-                    if key in audio_pipelines and "left_wrist" in trails and len(trails["left_wrist"]) > 1:
-                        pl, pitch, eq, vol, pan = audio_pipelines[key]
-                        speed = kp_speed(trails["left_wrist"])
-                        pitch.set_property("pitch", max(0.5, min(2.0, 1.0 + speed*4)))
-                        vol  .set_property("volume", min(1.0, 0.5 + person_count*0.1))
+       # if current_sound and person_trails:
+       #     for pid, trails in person_trails.items():
+        #        if visual_names[current_visual_index] == "Acceleration Glow":
+             #       key = f"{pid}_{current_sound}"
+            #        if key in audio_pipelines and "left_wrist" in trails and len(trails["left_wrist"]) > 1:
+           #             pl, pitch, eq, vol, pan = audio_pipelines[key]
+          #              speed = kp_speed(trails["left_wrist"])
+         #               pitch.set_property("pitch", max(0.5, min(2.0, 1.0 + speed*4)))
+        #                vol  .set_property("volume", min(1.0, 0.5 + person_count*0.1)) 
 
         # ─── Render ────────────────────────────────────────────────
         try:
@@ -374,10 +380,10 @@ class user_app_callback_class(app_callback_class):
 
 if __name__ == "__main__":
     # default visual = motion trails
-    class MotionTrailsVisual:
-        def visualize(self, user_data, surface): draw_motion_trails(surface)
-    visuals.insert(0, MotionTrailsVisual())
-    visual_names.insert(0, "Motion Trails")
+#    class MotionTrailsVisual:
+ #       def visualize(self, user_data, surface): draw_motion_trails(surface)
+ #   visuals.insert(0, MotionTrailsVisual())
+ #   visual_names.insert(0, "Motion Trails")
 
     load_visuals()
 
