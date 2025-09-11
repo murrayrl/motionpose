@@ -32,6 +32,12 @@ from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
 #  GStreamer callback
 # ────────────────────────────────
 def app_callback(pad, info, user_data):
+    # isadora data setup
+    coordinates_data = []
+    list_x = {}
+    list_y = {}
+
+    # app_callback
     buffer = info.get_buffer()
     if not buffer:
         return Gst.PadProbeReturn.OK
@@ -60,7 +66,22 @@ def app_callback(pad, info, user_data):
             left_shoulder = pts[5]
             x, y = left_shoulder.x(), left_shoulder.y()
             print(f"Person {idx}: Left shoulder at ({x:.3f}, {y:.3f})")
+            # Isadora data export
+            person_data = {'person': idx, 'keypoints': []}
+            person_data['keypoints'].append({
+                'label': 'left_shoulder',
+                'x': float(x),
+                'y': float(y),
+                #'confidence': float(conf)
+            })
+            # 5 stands in for keypoint number, left_shoulder is 5
+            list_x['left_shoulder' + "/p" + str(5)] = float(x)
+            list_y['left_shoulder' + "/p" + str(5)] = float(y)
+            coordinates_data.append(person_data)
+            
 
+    await send_coordinates(coordinates_data)
+    send_osc(list_x, list_y)
     user_data.set_detections(detections)
     return Gst.PadProbeReturn.OK
 
@@ -91,6 +112,9 @@ async def send_coordinates(data):
         print("data: ", data)
         print("Failed to send data:", e) 
 
+# ────────────────────────────────
+#  OSC
+# ────────────────────────────────
 def send_osc(x_list, y_list):
 
     for (key1, value1), (key2, value2) in zip(x_list.items(), y_list.items()):
