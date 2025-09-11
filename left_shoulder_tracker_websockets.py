@@ -11,6 +11,7 @@ import numpy as np
 import hailo
 import websockets
 import time
+from pythonosc import udp_client
 
 # Set up the OSC client
 ip = "127.0.0.1"  # The IP address of the computer running Isadora
@@ -80,6 +81,7 @@ class user_app_callback_class(app_callback_class):
 #  Websockets
 # ────────────────────────────────
 async def send_coordinates(data):
+    # NEED TO REPLACE 'localhost' with ACTUAL ISADORA PC IP
     uri = "ws://localhost:8765"
     try:
         async with websockets.connect(uri) as websocket:
@@ -89,22 +91,31 @@ async def send_coordinates(data):
         print("data: ", data)
         print("Failed to send data:", e) 
 
-if __name__ == "__main__":
-    # commented non isadora implementation while working 
-    #Gst.init(None)
+def send_osc(x_list, y_list):
 
-    #user_data = user_app_callback_class()
-    #app       = GStreamerPoseEstimationApp(app_callback, user_data)
+    for (key1, value1), (key2, value2) in zip(x_list.items(), y_list.items()):
+        channel_x = str(address_x + '/' + key1)
+        channel_y = str(address_y + '/' + key2)
+        print(channel_y)
+        print(channel_x)
+        client.send_message(channel_x, value1)
+        client.send_message(channel_y, value2)
+
+if __name__ == "__main__":
+    Gst.init(None)
+
+    user_data = user_app_callback_class()
+    app       = GStreamerPoseEstimationApp(app_callback, user_data)
 
     # Run in background
-    #threading.Thread(target=app.run, daemon=True).start()
+    threading.Thread(target=app.run, daemon=True).start()
 
-    #print("Tracking left shoulder... press Ctrl+C to stop.")
-    #try:
-    #    while True:
-    #        pass  # callback handles printing
-    #except KeyboardInterrupt:
-    #    print("\nExiting.")
+    print("Tracking left shoulder... press Ctrl+C to stop.")
+    try:
+        while True:
+            pass  # callback handles printing
+    except KeyboardInterrupt:
+        print("\nExiting.")
 
     # ────────────────────────────────
     # Isadora data structure
@@ -123,18 +134,16 @@ if __name__ == "__main__":
     # Next, only the needed keypoints, contained in kpt_list
     # are added to list_x and list_y
     #
-    # need list_x, list_y arrays
+    # need list_x, list_y dictrionaries
     # list_x has following structure:
+    #     {'keypoint_name/p' + 'number': x_coord}
+    # ex: list_x[0] = {'left_wrist/p1': 27.89}
     # 
-    # send all three to isadora
+    # send all three to isadora using
+    # await send_coordinates(coordinates_data)
+    # send_osc(list_x, list_y)
     # ────────────────────────────────
-    #                                if (keypoint_names[j] in kpt_list):
-    #                                   list_x[keypoint_names[j]+"/p" + str(i+1)]= float(x)
-    #                                   list_y[keypoint_names[j] + "/p" + str(i+1)] = float(y)
-    #               
-    #                    if coordinates_data:
-    #                        await send_coordinates(coordinates_data)
-    #                        send_osc(list_x, list_y)
+    
 
 
     cap.release()
