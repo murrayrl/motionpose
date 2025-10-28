@@ -10,6 +10,7 @@ import numpy as np
 import hailo
 import json
 import time
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +20,9 @@ from hailo_apps_infra.hailo_rpi_common import (
     app_callback_class,
 )
 from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
+
+# Suppress GStreamer warnings
+os.environ['GST_DEBUG'] = '1'  # Only show errors, not warnings
 
 # ────────────────────────────────
 # FILE LOGGING CONFIGURATION
@@ -64,29 +68,35 @@ KEYPOINTS = {
 }
 
 # ────────────────────────────────
-#  GStreamer callback (OPTIMIZED)
+#  GStreamer callback (OPTIMIZED + ERROR HANDLING)
 # ────────────────────────────────
 def app_callback(pad, info, user_data):
     global frame_count, print_counter
     
-    buffer = info.get_buffer()
-    if not buffer:
+    try:
+        buffer = info.get_buffer()
+        if not buffer:
+            return Gst.PadProbeReturn.OK
+
+        user_data.increment()
+        frame_count += 1
+        print_counter += 1
+        
+        # Only process frame data every Nth frame to reduce overhead
+        fmt, w, h = get_caps_from_pad(pad)
+        if fmt and w and h:
+            frame = get_numpy_from_buffer(buffer, fmt, w, h)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            user_data.set_frame(frame)
+
+        roi = hailo.get_roi_from_buffer(buffer)
+        if not roi:
+            return Gst.PadProbeReturn.OK
+            
+        detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
+    except Exception as e:
+        # Silently handle GStreamer timing errors
         return Gst.PadProbeReturn.OK
-
-    user_data.increment()
-    frame_count += 1
-    print_counter += 1
-    
-    # Only process frame data every Nth frame to reduce overhead
-    # But still do minimal processing for speed
-    fmt, w, h = get_caps_from_pad(pad)
-    if fmt and w and h:
-        frame = get_numpy_from_buffer(buffer, fmt, w, h)
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        user_data.set_frame(frame)
-
-    roi = hailo.get_roi_from_buffer(buffer)
-    detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
     # Get current timestamp
     elapsed_time = time.time() - start_time
@@ -200,6 +210,7 @@ class user_app_callback_class(app_callback_class):
         self.detections = dets
 
 if __name__ == "__main__":
+    # Initialize GStreamer
     Gst.init(None)
 
     user_data = user_app_callback_class()
