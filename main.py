@@ -26,11 +26,11 @@ from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
 # CONFIGURATION - EDIT THESE VALUES
 # ────────────────────────────────
 # OSC Configuration (for local Isadora instance if running on Pi)
-OSC_IP = "127.0.0.1"
+OSC_IP = "10.186.117.84"
 OSC_PORT = 1234
 
 # WebSocket Configuration (to send to laptop running Isadora)
-ISADORA_IP = "192.168.1.100"  # REPLACE WITH YOUR LAPTOP'S IP ADDRESS
+ISADORA_IP = "10.186.117.84"  # REPLACE WITH YOUR LAPTOP'S IP ADDRESS
 ISADORA_PORT = 8765
 
 # Keypoints to track (COCO format indices and names)
