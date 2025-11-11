@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-sys.path.append("/home/mlm/JG_POSE/hailo-apps-infra")
+sys.path.append("/home/mlmcapstone/JG_POSE/hailo-apps-infra")
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst
@@ -14,12 +14,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from hailo_apps_infra.hailo_rpi_common import (
-    get_caps_from_pad,
-    get_numpy_from_buffer,
-    app_callback_class,
-)
-from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
+from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
+from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
+from hailo_apps.hailo_app_python.apps.pose_estimation.pose_estimation_pipeline import GStreamerPoseEstimationApp
 
 # Suppress GStreamer warnings
 os.environ['GST_DEBUG'] = '1'  # Only show errors, not warnings
@@ -229,4 +226,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n\nStopping and saving data...")
         save_data()
+
         print("\nExiting.")
