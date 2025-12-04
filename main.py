@@ -69,7 +69,8 @@ KEYPOINTS = {
 }
 
 # Keypoints to send via OSC (subset of all keypoints)
-OSC_KEYPOINTS = ['left_shoulder', 'right_shoulder', 'left_wrist', 'right_wrist']
+OSC_KEYPOINTS = ['left_shoulder', 'right_shoulder', 'left_wrist', 'right_wrist', 
+                 'left_hip', 'right_hip', 'left_ankle', 'right_ankle']
 # ────────────────────────────────
 
 # Set up OSC client
@@ -81,9 +82,9 @@ address_y = "/isadora-multi/2"
 loop = None
 websocket_queue = asyncio.Queue()
 
-# Timing control for 0.5 second delay
+# Timing control for 0.x second delay
 last_send_time = 0
-SEND_DELAY = 0.5  # seconds
+SEND_DELAY = 0.2  # seconds
 
 
 # ────────────────────────────────
@@ -309,3 +310,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nShutdown complete.")
+
