@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import sys
 sys.path.append("/home/mlm/JG_POSE/hailo-apps-infra")
@@ -13,6 +12,7 @@ import hailo
 import websockets
 import asyncio
 import json
+import time
 from pythonosc import udp_client
 
 from hailo_apps_infra.hailo_rpi_common import (
@@ -23,15 +23,29 @@ from hailo_apps_infra.hailo_rpi_common import (
 from hailo_apps_infra.pose_estimation_pipeline import GStreamerPoseEstimationApp
 
 # ────────────────────────────────
-# CONFIGURATION - EDIT THESE VALUES
+# CONFIGURATION
 # ────────────────────────────────
-# OSC Configuration (for local Isadora instance if running on Pi)
-OSC_IP = "10.186.117.84"
+# Prompt user for IP addresses
+print("\n" + "="*60)
+print("Pose Estimation Setup")
+print("="*60)
+
+ISADORA_IP = input("Enter Isadora IP address: ").strip()
+use_same_ip = input("Use same IP for OSC? (Y/n): ").strip().lower()
+
+if use_same_ip == 'n' or use_same_ip == 'no':
+    OSC_IP = input("Enter OSC IP address: ").strip()
+else:
+    OSC_IP = ISADORA_IP
+    print(f"Using {OSC_IP} for OSC")
+
+# Default ports
+ISADORA_PORT = 8765
 OSC_PORT = 1234
 
-# WebSocket Configuration (to send to laptop running Isadora)
-ISADORA_IP = "10.186.117.84"  # REPLACE WITH YOUR LAPTOP'S IP ADDRESS
-ISADORA_PORT = 8765
+# Coordinate scaling configuration
+COORD_MIN = 0
+COORD_MAX = 600
 
 # Keypoints to track (COCO format indices and names)
 KEYPOINTS = {
@@ -67,11 +81,35 @@ address_y = "/isadora-multi/2"
 loop = None
 websocket_queue = asyncio.Queue()
 
+# Timing control for 0.5 second delay
+last_send_time = 0
+SEND_DELAY = 0.5  # seconds
+
+
+# ────────────────────────────────
+#  Coordinate scaling function
+# ────────────────────────────────
+def scale_coordinate(value, min_val=COORD_MIN, max_val=COORD_MAX):
+    """
+    Scale normalized coordinate (0.0-1.0) to desired range (default 0-600)
+    Returns rounded to 2 decimal places
+    """
+    scaled = min_val + (value * (max_val - min_val))
+    return round(scaled, 2)
+
+
 # ────────────────────────────────
 #  GStreamer callback
 # ────────────────────────────────
 def app_callback(pad, info, user_data):
     """Process each frame and extract keypoint data"""
+    global last_send_time
+    
+    # Check if enough time has passed since last send
+    current_time = time.time()
+    if current_time - last_send_time < SEND_DELAY:
+        return Gst.PadProbeReturn.OK
+    
     coordinates_data = []
     list_x = {}
     list_y = {}
@@ -108,26 +146,35 @@ def app_callback(pad, info, user_data):
 
         # Loop through all defined keypoints
         for kp_idx, kp_name in KEYPOINTS.items():
-            if len(pts) > kp_idx:
+            if kp_idx < len(pts):
                 kp = pts[kp_idx]
-                x, y = kp.x(), kp.y()
+                x_raw, y_raw = kp.x(), kp.y()
                 
-                # Add to WebSocket data
+                # Scale coordinates to 0-600 range and round to 2 decimals
+                x_scaled = scale_coordinate(x_raw)
+                y_scaled = scale_coordinate(y_raw)
+                
+                # Add to WebSocket data (scaled and rounded)
                 person_data['keypoints'].append({
                     'label': kp_name,
-                    'x': float(x),
-                    'y': float(y)
+                    'x': x_scaled,
+                    'y': y_scaled
                 })
                 
-                # Add to OSC data if in OSC keypoint list
+                # Add to OSC data if in OSC keypoint list (scaled and rounded)
                 if kp_name in OSC_KEYPOINTS:
-                    list_x[f"{kp_name}/p{idx + 1}"] = float(x)
-                    list_y[f"{kp_name}/p{idx + 1}"] = float(y)
+                    list_x[f"{kp_name}/p{idx + 1}"] = x_scaled
+                    list_y[f"{kp_name}/p{idx + 1}"] = y_scaled
                 
-                # Print for debugging
-                print(f"Person {idx + 1}: {kp_name} at ({x:.3f}, {y:.3f})")
+                # Print for debugging (only if data is being sent)
+                print(f"Person {idx + 1}: {kp_name} at ({x_scaled:.2f}, {y_scaled:.2f})")
 
-        coordinates_data.append(person_data)
+        if person_data['keypoints']:  # Only add if keypoints were found
+            coordinates_data.append(person_data)
+
+    # Update last send time if we have data to send
+    if coordinates_data or (list_x and list_y):
+        last_send_time = current_time
 
     # Send data via WebSocket (queued for async processing)
     if coordinates_data and loop:
@@ -181,10 +228,11 @@ async def websocket_sender():
                     data = await websocket_queue.get()
                     
                     try:
-                        await websocket.send(json.dumps(data))
-                        print(f"✓ Sent data for {len(data)} person(s)")
+                        json_data = json.dumps(data)
+                        await websocket.send(json_data)
+                        print(f"✓ Sent WebSocket data for {len(data)} person(s) - {len(json_data)} bytes")
                     except Exception as e:
-                        print(f"✗ Failed to send data: {e}")
+                        print(f"✗ Failed to send WebSocket data: {e}")
                         break  # Break inner loop to reconnect
                         
         except Exception as e:
@@ -199,6 +247,7 @@ async def websocket_sender():
 # ────────────────────────────────
 def send_osc(x_list, y_list):
     """Send keypoint data via OSC"""
+    sent_count = 0
     for (key1, value1), (key2, value2) in zip(x_list.items(), y_list.items()):
         channel_x = f"{address_x}/{key1}"
         channel_y = f"{address_y}/{key2}"
@@ -206,9 +255,13 @@ def send_osc(x_list, y_list):
         try:
             osc_client.send_message(channel_x, value1)
             osc_client.send_message(channel_y, value2)
-            print(f"OSC: {channel_x} = {value1:.3f}, {channel_y} = {value2:.3f}")
+            sent_count += 1
+            print(f"OSC: {channel_x} = {value1:.2f}, {channel_y} = {value2:.2f}")
         except Exception as e:
-            print(f"✗ OSC send error: {e}")
+            print(f"✗ OSC send error for {key1}: {e}")
+    
+    if sent_count > 0:
+        print(f"✓ Sent {sent_count} OSC keypoint pairs")
 
 
 # ────────────────────────────────
@@ -226,6 +279,9 @@ async def main():
     print("="*60)
     print(f"WebSocket target: ws://{ISADORA_IP}:{ISADORA_PORT}")
     print(f"OSC target: {OSC_IP}:{OSC_PORT}")
+    print(f"Coordinate range: {COORD_MIN}-{COORD_MAX}")
+    print(f"Decimal precision: 2 places")
+    print(f"Send delay: {SEND_DELAY} seconds")
     print(f"Tracking {len(KEYPOINTS)} keypoints")
     print(f"OSC keypoints: {', '.join(OSC_KEYPOINTS)}")
     print("="*60)
